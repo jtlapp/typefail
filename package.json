@@ -1,0 +1,17 @@
+{
+  "name": "typetest",
+  "version": "0.1.0",
+  "description": "Assert expected compile-time errors within Typescript source code",
+  "main": "index.js",
+  "repository": "https://github.com/jtlapp/typetest.git",
+  "author": "Joseph T. Lapp <arachnojoe@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "minimatch": "^3.0.4",
+    "typescript": "2.6.2"
+  },
+  "devDependencies": {
+    "@types/minimatch": "^3.0.3",
+    "@types/node": "^9.4.0"
+  }
+}
