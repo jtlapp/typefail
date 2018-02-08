@@ -1,10 +1,19 @@
 
 import * as ts from 'typescript';
+import { dirname } from 'path';
 
 export interface CommentInfo {
     text: string;
     startIndex: number;
     endIndex: number;
+}
+
+export function countLFs(text: string, nextIndex: number) {
+    let count = 0;
+    while ((nextIndex = text.indexOf('\n', nextIndex) + 1) > 0) {
+        ++count;
+    }
+    return count;
 }
 
 export function getNodeComments(nodeText: string): CommentInfo[] | null {
@@ -22,12 +31,17 @@ export function getNodeComments(nodeText: string): CommentInfo[] | null {
     });
 }
 
-export function countLFs(text: string, nextIndex: number) {
-    let count = 0;
-    while ((nextIndex = text.indexOf('\n', nextIndex) + 1) > 0) {
-        ++count;
+export function loadCompilerOptions(tsconfigPath: string) {
+    const {config, error} = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+    if (error) {
+        throw new Error(ts.flattenDiagnosticMessageText(error.messageText, '\n'));
     }
-    return count;
+    const {options, errors} = ts.convertCompilerOptionsFromJson(
+            config.compilerOptions, dirname(tsconfigPath));
+    if (errors.length > 0) {
+        throw new Error(ts.flattenDiagnosticMessageText(errors[0].messageText, '\n'));
+    }
+    return options;
 }
 
 export function toFileLocation(fileName: string, lineNum: number, charNum?: number) {

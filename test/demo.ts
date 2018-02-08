@@ -2,11 +2,18 @@
 import * as ts from 'typescript';
 import { TypeTest } from '../src';
 
+const compilerOptions = {
+    allowUnreachableCode: true,
+    module: ts.ModuleKind.CommonJS,
+    //strict: true,
+    //noImplicitReturns: true,
+    //noUnusedLocals: true,
+    //noFallthroughCasesInSwitch: true,
+    target: ts.ScriptTarget.ES2016
+};
+
 const test = new TypeTest(process.argv.slice(2), {
-    noEmitOnError: true,
-    noImplicitAny: true,
-    target: ts.ScriptTarget.ES5,
-    module: ts.ModuleKind.CommonJS
+    compilerOptions
 });
 test.run();
 

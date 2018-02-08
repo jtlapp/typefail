@@ -6,6 +6,9 @@
   "repository": "https://github.com/jtlapp/typetest.git",
   "author": "Joseph T. Lapp <arachnojoe@gmail.com>",
   "license": "MIT",
+  "scripts": {
+    "test": "mocha --timeout 5000 -r ts-node/register"
+  },
   "dependencies": {
     "minimatch": "^3.0.4",
     "typescript": "2.6.2"
@@ -17,6 +20,7 @@
     "@types/node": "^9.4.0",
     "assert-rejected": "^1.1.1",
     "chai": "^4.1.2",
-    "mocha": "^5.0.0"
+    "mocha": "^5.0.0",
+    "ts-node": "^4.1.0"
   }
 }

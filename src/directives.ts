@@ -52,7 +52,7 @@ export abstract class Directive {
 
 export class GroupDirective extends Directive {
 
-    static readonly DEFAULT_GROUP_NAME = 'Unnamed TypeTest Group';
+    static readonly DEFAULT_GROUP_NAME = 'Heading test group';
     
     isFirstNode: boolean;
     name: string;
@@ -78,9 +78,11 @@ export class ExpectErrorDirective extends Directive {
     ) {
         super(targetLineNum);
         this.fileName = fileName;
+        this.pattern = pattern;
+
         if (pattern === undefined) {
             this.expectedErrors.push(new ExpectedError(this, undefined, 'any error',
-                (failure) => true));
+                (failure) => true /*match any error*/));
         }
         else {
             const matches = pattern.match(/^[/](.+)[/]([imu]+)?$/);
@@ -89,7 +91,7 @@ export class ExpectErrorDirective extends Directive {
                 this.expectedErrors.push(new ExpectedError(this, undefined, pattern,
                     (failure) => regex.test(failure.message!)));
             }
-            else if (/^("(.+)")|('(.+)')|(`(.+)`)$/.test(pattern)) {
+            else if (/^("(.+)")|('(.+)')$/.test(pattern)) {
                 const exactMessage = pattern.substr(1, pattern.length - 2);
                 this.expectedErrors.push(new ExpectedError(this, undefined, exactMessage,
                     (failure) => failure.message === exactMessage));
@@ -107,7 +109,6 @@ export class ExpectErrorDirective extends Directive {
                 throw new Error(`Invalid ${directive} directive at ${location}`);
             }
         }
-        this.pattern = pattern;
     }
 
     addExpectedErrors(accumulatedExpectedErrors: ExpectedError[]) {

@@ -18,8 +18,8 @@ function _verifyErrors(typeTest: TypeTest, expecteds: string[], all: boolean) {
     // Verify typeTest.errors() behavior.
 
     const errorMessages: string[] = [];
-    for (let error of typeTest.errors()) {
-        errorMessages.push(error.message);
+    for (let failure of typeTest.failures()) {
+        errorMessages.push(failure.toErrorString());
     }
     _verifyMessages(errorMessages, expecteds, all, 'in errors()');
 

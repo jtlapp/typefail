@@ -23,10 +23,10 @@ export class Failure {
     toErrorString() {
         let type: string;
         if (this.type === FailureType.MissingError) {
-            type = 'missing error ';
+            type = 'missing error';
         }
         else {
-            type = 'error ';
+            type = 'error';
         }
         const code = (this.code === undefined ? '' : ` TS${this.code}`);
         const message = (this.message === undefined ? '' : `: ${this.message}`);

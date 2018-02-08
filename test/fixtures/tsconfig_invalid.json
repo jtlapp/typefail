@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "allowUnreachableCode": false,
-        "module": "commonjs",
+        "module": "mumbojumbo",
         "strict": true,
         "noImplicitReturns": true,
         "noUnusedLocals": true,

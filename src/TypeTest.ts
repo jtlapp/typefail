@@ -11,9 +11,14 @@ import { Directive, GroupDirective, ExpectErrorDirective, ExpectedError } from '
 // TBD: default load tsconfig.json, searching up dir tree
 // TBD: look at having an expect-warning (TS also supports messages)
 // TBD: in order to be able to report an invalid directive name, I need a robust directive indicator syntax.
+// TBD: option to permit only certain expected error syntaxes
 
 export const DIRECTIVE_SYNTAX_REGEX =
         new RegExp(`^/{2,}[ ]*${Directive.DIRECTIVE_PREFIX}:([^ ]*)(?:: *(.*))?$`, 'i');
+
+export interface TypeTestOptions {
+    compilerOptions: string | ts.CompilerOptions // TBD: make optional
+}
 
 interface FileMark {
     file: ts.SourceFile; // file being scanned
@@ -43,20 +48,27 @@ class ErrorReport {
 
 export class TypeTest {
 
+    protected compilerOptions: ts.CompilerOptions;
     protected program: ts.Program | undefined; // undefined before run()
     protected directives: Map<string, Directive[]>; // source file => directives
     protected generalErrorReports: ErrorReport[] = []; // failures to begin compilation
     protected sourceErrorReports: Map<string, ErrorReport[]>; // source file => source errors
     protected failureIndex: Map<string, Map<string, Failure[]>>; // file => (group name => failures)
 
-    constructor(public fileNames: string[], public options: ts.CompilerOptions) {
+    constructor(public fileNames: string[], public options: TypeTestOptions) {
         this.directives = new Map<string, Directive[]>();
         this.sourceErrorReports = new Map<string, ErrorReport[]>();
         this.failureIndex = new Map<string, Map<string, Failure[]>>();
+        if (typeof options.compilerOptions === 'string') {
+            this.compilerOptions = tsutil.loadCompilerOptions(options.compilerOptions);
+        }
+        else {
+            this.compilerOptions = options.compilerOptions;
+        }
     }
 
     run(bailOnFirstError = false) {
-        this.program = ts.createProgram(this.fileNames, this.options);
+        this.program = ts.createProgram(this.fileNames, this.compilerOptions);
         // Must load errors first because compilers loads data on demand.
         this._loadErrors(bailOnFirstError);
         this._loadDirectives();
@@ -82,7 +94,7 @@ export class TypeTest {
 
     *failures(filePath = '*', groupName?: string) {
         if (groupName === undefined) {
-            for (let file of this.groups(filePath)) {
+            for (let file of this.files(filePath)) {
                 const fileIndex = this._getFileIndex(file);
                 for (let groupName of fileIndex.keys()) {
                     for (let failure of fileIndex.get(groupName)!) {
@@ -116,8 +128,8 @@ export class TypeTest {
     }
 
     throwFirstError(filePath = '*', groupName?: string) {
-        for (let error of this.failures(filePath, groupName)) {
-            throw error;
+        for (let failure of this.failures(filePath, groupName)) {
+            throw new Error(failure.toErrorString());
         }
     }
 
@@ -211,7 +223,7 @@ export class TypeTest {
                         diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start!);
                 // For now, assume all errors are unexpected.
                 errorReport = new ErrorReport(new Failure(FailureType.UnexpectedError, code,
-                        message, { fileName, lineNum: line, charNum: character }));
+                        message, { fileName, lineNum: line + 1, charNum: character + 1 }));
                 const errorReports = this.sourceErrorReports.get(fileName) || [];
                 errorReports.push(<ErrorReport>errorReport);
                 if (errorReports.length === 1) {
@@ -241,7 +253,6 @@ export class TypeTest {
         const nodeText = node.getFullText();
         // Start at offset 1 to skip LF ending last read line.
         fileMark.linesRead += tsutil.countLFs(nodeText, 0);
-        console.log(`KIND ${ts.SyntaxKind[node.kind]}`);
 
         const comments = tsutil.getNodeComments(nodeText);
         if (comments !== null) {
