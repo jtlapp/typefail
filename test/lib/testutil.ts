@@ -21,7 +21,7 @@ function _verifyErrors(typeTest: TypeTest, expecteds: string[], all: boolean) {
     for (let failure of typeTest.failures()) {
         errorMessages.push(failure.toErrorString());
     }
-    _verifyMessages(errorMessages, expecteds, all, 'in errors()');
+    _verifyMessages(errorMessages, expecteds, all, 'in failures()');
 
     // Verify typeTest.throwCombinedError() behavior.
 

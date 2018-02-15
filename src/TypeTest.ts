@@ -2,47 +2,46 @@
 import * as ts from "typescript";
 import * as minimatch from 'minimatch';
 import * as tsutil from './tsutil';
-import { FailureType, Failure } from './failure';
 import { Directive, GroupDirective, ExpectErrorDirective, ExpectedError } from './directives';
+import { FailureType, Failure } from './failure';
+import { TestSetupError, TestFailureError } from './errors';
 
-// TBD: Allow directives of the form /*[*]* typetest and * typetest
+// TBD: add support for directives of the form /* directive */
 // TBD: error on first pass if expected error value has invalid format
 // TBD: look at adding test labels for any node -- expecting errors or not
-// TBD: default load tsconfig.json, searching up dir tree
-// TBD: look at having an expect-warning (TS also supports messages)
+// TBD: default load tsconfig.json, searching up dir tree (command line tool)
 // TBD: in order to be able to report an invalid directive name, I need a robust directive indicator syntax.
 // TBD: option to permit only certain expected error syntaxes
-
-export const DIRECTIVE_SYNTAX_REGEX =
-        new RegExp(`^/{2,}[ ]*${Directive.DIRECTIVE_PREFIX}:([^ ]*)(?:: *(.*))?$`, 'i');
+// TBD: add style option regex that each directive comment must match
 
 export interface TypeTestOptions {
     compilerOptions: string | ts.CompilerOptions // TBD: make optional
 }
+
+export const DEFAULT_GROUP_NAME = 'Default Group';
+
+const ERROR_DELIM = "\n"; // delimiting error messages in combined errors
 
 interface FileMark {
     file: ts.SourceFile; // file being scanned
     linesRead: number; // number of lines so far read from file
 }
 
-class ErrorReport {
+class FailureCandidate {
 
-    failureCandidate: Failure;
+    failure: Failure;
     wasExpected = false;
 
-    constructor(failureCandidate: Failure) {
-        this.failureCandidate = failureCandidate;
+    constructor(failure: Failure) {
+        this.failure = failure;
     }
 
     at() {
-        if (this.failureCandidate.at === undefined) {
-            throw new Error("Typescript file error lacks a file location");
+        if (this.failure.at === undefined) {
+            // Should never happen.
+            throw new Error("Typescript file error lacks a file location"); // fatal error
         }
-        return this.failureCandidate.at;
-    }
-
-    toError() {
-        return new Error(this.failureCandidate.toErrorString());
+        return this.failure.at;
     }
 }
 
@@ -51,13 +50,13 @@ export class TypeTest {
     protected compilerOptions: ts.CompilerOptions;
     protected program: ts.Program | undefined; // undefined before run()
     protected directives: Map<string, Directive[]>; // source file => directives
-    protected generalErrorReports: ErrorReport[] = []; // failures to begin compilation
-    protected sourceErrorReports: Map<string, ErrorReport[]>; // source file => source errors
+    protected setupErrorMessages: string[] = []; // messages for errors during test setup
+    protected failureCandidates: Map<string, FailureCandidate[]>; // source file => source errors
     protected failureIndex: Map<string, Map<string, Failure[]>>; // file => (group name => failures)
 
     constructor(public fileNames: string[], public options: TypeTestOptions) {
         this.directives = new Map<string, Directive[]>();
-        this.sourceErrorReports = new Map<string, ErrorReport[]>();
+        this.failureCandidates = new Map<string, FailureCandidate[]>();
         this.failureIndex = new Map<string, Map<string, Failure[]>>();
         if (typeof options.compilerOptions === 'string') {
             this.compilerOptions = tsutil.loadCompilerOptions(options.compilerOptions);
@@ -67,14 +66,14 @@ export class TypeTest {
         }
     }
 
-    run(bailOnFirstError = false) {
+    run(bailOnFirstError = true) {
         this.program = ts.createProgram(this.fileNames, this.compilerOptions);
         // Must load errors first because compilers loads data on demand.
         this._loadErrors(bailOnFirstError);
-        this._loadDirectives();
-        if (this.generalErrorReports.length > 0) {
-            const failures = this.generalErrorReports.map(report => report.failureCandidate);
-            throw Failure.combinedError(failures);
+        this._loadDirectives(bailOnFirstError);
+        // If we have errors and didn't bail, we must be combining error messages.
+        if (this.setupErrorMessages.length > 0) {
+            throw new TestSetupError(this.setupErrorMessages.join(ERROR_DELIM));
         }
     }
 
@@ -106,7 +105,7 @@ export class TypeTest {
         else {
             const fileIndex = this._getFileIndex(filePath);
             if (fileIndex === undefined) {
-                throw new Error(`File '${filePath}' not found`);
+                throw new Error(`File '${filePath}' not found`); // fatal error
             }
             for (let groupName of fileIndex.keys()) {
                 for (let failure of fileIndex.get(groupName)!) {
@@ -123,13 +122,15 @@ export class TypeTest {
             failures.push(failure);
         }
         if (failures.length > 0) {
-            throw Failure.combinedError(failures);
+            throw new TestFailureError(failures.map(failure => {
+                return failure.toErrorString();
+            }).join(ERROR_DELIM));
         }
     }
 
     throwFirstError(filePath = '*', groupName?: string) {
         for (let failure of this.failures(filePath, groupName)) {
-            throw new Error(failure.toErrorString());
+            throw new TestFailureError(failure.toErrorString(), failure.code);
         }
     }
 
@@ -145,11 +146,11 @@ export class TypeTest {
 
         // Prepare to determine the failures occurring in each group.
 
-        const fileErrorReports = this.sourceErrorReports.get(fileName) || [];
+        const fileFailureCandidates = this.failureCandidates.get(fileName) || [];
         let fileDirectives = this.directives.get(fileName);
         let groupExpectedErrors: ExpectedError[] = [];
-        let reportIndex = 0;
-        let groupName = GroupDirective.DEFAULT_GROUP_NAME;
+        let candidateIndex = 0;
+        let groupName = DEFAULT_GROUP_NAME;
 
         // Collect failures for all groups of the file but the last.
 
@@ -159,14 +160,17 @@ export class TypeTest {
                 if (directive instanceof GroupDirective) {
 
                     if (!directive.isFirstNode) {
-                        const { failures, nextReportIndex } = this._getGroupFailures(
-                                    groupExpectedErrors, fileErrorReports,
-                                    reportIndex, directive.targetLineNum);
+                        const { failures, nextCandidateIndex } = this._getGroupFailures(
+                            groupExpectedErrors,
+                            fileFailureCandidates,
+                            candidateIndex,
+                            directive.targetLineNum
+                        );
                         fileIndex.set(groupName, failures);
                         groupExpectedErrors = [];
-                        reportIndex = nextReportIndex;
+                        candidateIndex = nextCandidateIndex;
                     }
-                    groupName = directive.name;
+                    groupName = directive.groupName;
                 }
                 else if (directive instanceof ExpectErrorDirective) {
                     directive.addExpectedErrors(groupExpectedErrors);
@@ -177,7 +181,7 @@ export class TypeTest {
         // Collect failures for the last group of the file.
 
         const { failures } = this._getGroupFailures(groupExpectedErrors,
-                fileErrorReports, reportIndex, Number.MAX_SAFE_INTEGER);
+                fileFailureCandidates, candidateIndex, Number.MAX_SAFE_INTEGER);
         fileIndex.set(groupName, failures);
 
         // Cache the collected failures and return the file map.
@@ -188,12 +192,12 @@ export class TypeTest {
 
     protected _getProgram() {
         if (this.program === undefined) {
-            throw new Error(`Test has not yet been run`);
+            throw new Error(`Test has not yet been run`); // fatal error
         }
         return this.program;
     }
 
-    protected _loadDirectives() {
+    protected _loadDirectives(bailOnFirstError: boolean) {
         const program = this._getProgram();
         const sourceFiles = program.getSourceFiles().filter(file => {
             return (this._testFileNames().indexOf(file.fileName) >= 0);
@@ -204,7 +208,7 @@ export class TypeTest {
             const fileMark = { file, linesRead: 1 };
             ts.forEachChild(file, child => {
 
-                this._collectDirectives(child, fileMark);
+                this._collectDirectives(child, fileMark, bailOnFirstError);
             });
         }
     }
@@ -215,28 +219,29 @@ export class TypeTest {
 
         diagnostics.forEach(diagnostic => {
             const code = diagnostic.code;
-            const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
-            let errorReport: ErrorReport;
+            const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, ERROR_DELIM);
             if (diagnostic.file) {
                 const fileName = diagnostic.file.fileName;
                 const { line, character } =
                         diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start!);
-                // For now, assume all errors are unexpected.
-                errorReport = new ErrorReport(new Failure(FailureType.UnexpectedError, code,
-                        message, { fileName, lineNum: line + 1, charNum: character + 1 }));
-                const errorReports = this.sourceErrorReports.get(fileName) || [];
-                errorReports.push(<ErrorReport>errorReport);
-                if (errorReports.length === 1) {
-                    this.sourceErrorReports.set(fileName, errorReports);
+                const failure = new Failure(
+                    FailureType.UnexpectedError,
+                    { fileName, lineNum: line + 1, charNum: character + 1 },
+                    code,
+                    message
+                );
+                const failureCandidate = new FailureCandidate(failure);
+                const failureCandidates = this.failureCandidates.get(fileName) || [];
+                failureCandidates.push(<FailureCandidate>failureCandidate);
+                if (failureCandidates.length === 1) {
+                    this.failureCandidates.set(fileName, failureCandidates);
                 }
             }
             else {
-                errorReport = new ErrorReport(new Failure(FailureType.UnexpectedError,
-                        code, message));
-                this.generalErrorReports.push(errorReport);
-            }
-            if (bailOnFirstError) {
-                throw errorReport.toError();
+                if (bailOnFirstError) {
+                    throw new TestSetupError(message, code);
+                }
+                this.setupErrorMessages.push(message);
             }
         });
     }
@@ -245,28 +250,31 @@ export class TypeTest {
         return this._getProgram().getRootFileNames();
     }
 
-    private _collectDirectives(node: ts.Node, fileMark: FileMark) {
+    private _collectDirectives(node: ts.Node, fileMark: FileMark, bailOnFirstError: boolean) {
 
         const file = fileMark.file;
         const directives = this.directives.get(file.fileName) || [];
-        // Track lines read to determine line numbers of directives.
         const nodeText = node.getFullText();
-        // Start at offset 1 to skip LF ending last read line.
+        const isFirstNode = (fileMark.linesRead === 1);
+        // Track lines read for determining line numbers of directives.
         fileMark.linesRead += tsutil.countLFs(nodeText, 0);
 
-        const comments = tsutil.getNodeComments(nodeText);
+        const comments = tsutil.getNodeComments(nodeText, fileMark.linesRead);
         if (comments !== null) {
             comments.forEach(comment => {
-                const matches = comment.text.match(DIRECTIVE_SYNTAX_REGEX);
-                if (matches !== null) {
-                    const isFirstNode = (fileMark.linesRead === 1);
-                    const lineNum = fileMark.linesRead -
-                            tsutil.countLFs(nodeText, comment.endIndex);
-                    const directive = Directive.create(file, isFirstNode, node,
-                            lineNum, matches[1].trim(), matches[2].trim());
-                    directives.push(directive);
-                    if (directives.length === 1) {
-                        this.directives.set(file.fileName, directives);
+                const result = Directive.parse(file, isFirstNode, node, nodeText, comment);
+                if (result !== null) {
+                    if (result instanceof Directive) {
+                        directives.push(result);
+                        if (directives.length === 1) {
+                            this.directives.set(file.fileName, directives);
+                        }
+                    }
+                    else { // result is a TestSetupError
+                        if (bailOnFirstError) {
+                            throw result;
+                        }
+                        this.setupErrorMessages.push(result.message);
                     }
                 }
             });
@@ -274,14 +282,14 @@ export class TypeTest {
     }
 
     private _getGroupFailures(expectedErrors: ExpectedError[],
-            fileErrorReports: ErrorReport[], reportIndex: number,
+            fileFailureCandidates: FailureCandidate[], candidateIndex: number,
             nextGroupLineNum: number
     ) {
         const failures: Failure[] = [];
-        const groupErrorReports: ErrorReport[] =
-            fileErrorReports.filter(report => report.at().lineNum < nextGroupLineNum);
-        const nextReportIndex = reportIndex + groupErrorReports.length;
-        reportIndex = 0; // repurpose for groupErrorReports
+        const groupFailureCandidates: FailureCandidate[] =
+            fileFailureCandidates.filter(candidate => candidate.at().lineNum < nextGroupLineNum);
+        const nextCandidateIndex = candidateIndex + groupFailureCandidates.length;
+        candidateIndex = 0; // repurpose for groupFailureCandidates
         let expectedErrorIndex = 0;
 
         // Log failures for each target line of code. A target line is a line of
@@ -294,22 +302,22 @@ export class TypeTest {
             // Determine the next target line number and its associated values.
 
             let targetLineNum = Number.MAX_SAFE_INTEGER; // assume last group
-            let errorReport: ErrorReport | null = null; // at targetlineNum
+            let failureCandidate: FailureCandidate | null = null; // at targetlineNum
             let expectedError: ExpectedError | null = null; // at targetLineNum
 
             if (expectedErrorIndex < expectedErrors.length) {
                 expectedError = expectedErrors[expectedErrorIndex];
                 targetLineNum = expectedError.directive.targetLineNum;
             }
-            if (reportIndex < groupErrorReports.length) {
-                const reportLineNum = groupErrorReports[reportIndex]!.at().lineNum;
-                if (reportLineNum < targetLineNum) {
-                    errorReport = groupErrorReports[reportIndex];
-                    targetLineNum = reportLineNum;
+            if (candidateIndex < groupFailureCandidates.length) {
+                const candidateLineNum = groupFailureCandidates[candidateIndex]!.at().lineNum;
+                if (candidateLineNum < targetLineNum) {
+                    failureCandidate = groupFailureCandidates[candidateIndex];
+                    targetLineNum = candidateLineNum;
                     expectedError = null; // directive applies to later target
                 }
-                else if (reportLineNum === targetLineNum) {
-                    errorReport = groupErrorReports[reportIndex];
+                else if (candidateLineNum === targetLineNum) {
+                    failureCandidate = groupFailureCandidates[candidateIndex];
                 }
             }
 
@@ -319,29 +327,32 @@ export class TypeTest {
                 break;
             }
 
-            // For the current target line number, mark all reports of errors
+            // For the current target line number, mark all failure candidates
             // that were expected and log expected errors that are missing.
 
             let expectingAtLeastOneError = (expectedError !== null);
             let foundAllExpectedErrors = true;
 
             while (expectedError !== null) {
-                let targetReportIndex = reportIndex; // restart scan of error reports
-                while (errorReport !== null) {
-                    if (expectedError.matches(errorReport.failureCandidate)) {
+                let targetCandidateIndex = candidateIndex; // restart scan of failure candidates
+                let foundExpectedError = false;
+                while (failureCandidate !== null) {
+                    if (expectedError.matches(failureCandidate.failure)) {
                         // mark expected; don't null or delete in case redundant directives
-                        groupErrorReports[targetReportIndex].wasExpected = true;
+                        groupFailureCandidates[targetCandidateIndex].wasExpected = true;
+                        foundExpectedError = true;
                     }
-                    else {
-                        foundAllExpectedErrors = false;
-                        failures.push(expectedError.toFailure());
-                    }
-                    errorReport = null; // advance to next error report of target line, if any
-                    if (++targetReportIndex < groupErrorReports.length &&
-                            groupErrorReports[targetReportIndex].at().lineNum === targetLineNum
+                    failureCandidate = null; // advance to next failure candidate of target line
+                    if (++targetCandidateIndex < groupFailureCandidates.length &&
+                            groupFailureCandidates[targetCandidateIndex].at().lineNum ===
+                                    targetLineNum
                     ) {
-                        errorReport = groupErrorReports[targetReportIndex];
+                        failureCandidate = groupFailureCandidates[targetCandidateIndex];
                     }
+                }
+                if (!foundExpectedError) {
+                    foundAllExpectedErrors = false;
+                    failures.push(expectedError.toFailure());
                 }
                 expectedError = null; // advance to next expected error of target line, if any
                 if (++expectedErrorIndex < expectedErrors.length &&
@@ -357,18 +368,18 @@ export class TypeTest {
             // current target line are ignored.
 
             if (!expectingAtLeastOneError || !foundAllExpectedErrors) {
-                // Scan starts from target line's first error report.
-                while (reportIndex < groupErrorReports.length &&
-                        groupErrorReports[reportIndex].at().lineNum === targetLineNum
+                // Scan starts from target line's first failure candidate.
+                while (candidateIndex < groupFailureCandidates.length &&
+                        groupFailureCandidates[candidateIndex].at().lineNum === targetLineNum
                 ) {
-                    const checkedErrorReport = groupErrorReports[reportIndex];
-                    if (!checkedErrorReport.wasExpected) {
-                        failures.push(checkedErrorReport.failureCandidate);
+                    const checkedCandidate = groupFailureCandidates[candidateIndex];
+                    if (!checkedCandidate.wasExpected) {
+                        failures.push(checkedCandidate.failure);
                     }
-                    ++reportIndex; // advances until reaching next target line
+                    ++candidateIndex; // advances until reaching next target line
                 }
             }
         }
-        return { failures, nextReportIndex };
+        return { failures, nextCandidateIndex };
     }
 }

@@ -2,10 +2,12 @@
 import * as ts from 'typescript';
 import { dirname } from 'path';
 
+const LF = "\n".charCodeAt(0);
+
 export interface CommentInfo {
-    text: string;
-    startIndex: number;
-    endIndex: number;
+    lineNum: number;
+    startOfLine: number;
+    endOfComment: number;
 }
 
 export function countLFs(text: string, nextIndex: number) {
@@ -16,17 +18,21 @@ export function countLFs(text: string, nextIndex: number) {
     return count;
 }
 
-export function getNodeComments(nodeText: string): CommentInfo[] | null {
+export function getNodeComments(nodeText: string, linesRead: number): CommentInfo[] | null {
+    // Rely on the library for skipping (multiply) commented-out directives.
     const commentRanges = ts.getLeadingCommentRanges(nodeText, 0);
-
-    if (commentRanges == null || commentRanges.length === 0) {
+    if (commentRanges === undefined || commentRanges.length === 0) {
         return null;
     }
     return commentRanges.map(range => {
+        let endOfPriorLine = range.pos;
+        while (endOfPriorLine >= 0 && nodeText.charCodeAt(endOfPriorLine) !== LF) {
+            --endOfPriorLine;
+        }
         return {
-            text: nodeText.substring(range.pos, range.end),
-            startIndex: range.pos,
-            endIndex: range.end
+            lineNum: linesRead - countLFs(nodeText, range.end),
+            startOfLine: endOfPriorLine + 1,
+            endOfComment: range.end
         };
     });
 }

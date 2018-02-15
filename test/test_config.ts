@@ -6,7 +6,7 @@ import { join } from 'path';
 import * as ts from 'typescript';
 import { TypeTest, Failure, FailureType } from '../src';
 
-const TEST_FILENAME = join(__dirname, 'fixtures/no_directives.ts');
+const TEST_FILENAME = join(__dirname, 'fixtures/ts_errors.ts');
 const expectedErrorLines = getExpectedErrorLines(TEST_FILENAME);
 
 class ErrorLine {
@@ -120,10 +120,10 @@ function verifyFailures(typeTest: TypeTest, strict: boolean) {
             if (failureIndex < failures.length) {
                 const failuresAtLine = getAllFailuresAtLine(failures, failureIndex);
                 const nextFailure = failuresAtLine[0];
-                if (nextFailure.at!.lineNum < errorLine.lineNum) {
+                if (nextFailure.at.lineNum < errorLine.lineNum) {
                     assert(false, `unexpected failure: ${nextFailure.toErrorString()}`);
                 }
-                else if (nextFailure.at!.lineNum === errorLine.lineNum) {
+                else if (nextFailure.at.lineNum === errorLine.lineNum) {
                     foundError = failuresAtLine.reduce((found, failure) => {
 
                         return (found || failure.code === errorLine.code);
@@ -147,11 +147,11 @@ function verifyFailures(typeTest: TypeTest, strict: boolean) {
 
 function getAllFailuresAtLine(failures: Failure[], failureIndex: number) {
     const failuresAtLine: Failure[] = [];
-    const lineNum = failures[failureIndex].at!.lineNum;
+    const lineNum = failures[failureIndex].at.lineNum;
     while (failureIndex < failures.length) {
         const failure = failures[failureIndex];
         validateFailure(failure);
-        if (failure.at!.lineNum !== lineNum) {
+        if (failure.at.lineNum !== lineNum) {
             break;
         }
         failuresAtLine.push(failure);
@@ -168,9 +168,13 @@ function validateFailure(failure: Failure) {
 
 
 function toErrorString(errorLine: ErrorLine) {
-    const failure = new Failure(FailureType.MissingError, errorLine.code, undefined, {
-        fileName: TEST_FILENAME,
-        lineNum: errorLine.lineNum
-    });
+    const failure = new Failure(
+        FailureType.MissingError,
+        {
+            fileName: TEST_FILENAME,
+            lineNum: errorLine.lineNum
+        },
+        errorLine.code
+    );
     return failure.toErrorString();
 }

@@ -1,4 +1,8 @@
 
+// Sampling of detected Typescript errors.
+
+// Mix of good and bad imports.
+
 import * as GoodImport from './imports/compiles';
 import { NotThere } from './imports/compiles'; /*TS2305*/
 import * as FileNotThere from './imports/notthere'; /*TS2307*/
@@ -17,13 +21,13 @@ interface ExportedStuff { /*TS2395*/
     nonExportedThing(): string;
 }
 
-// Bad syntax
+// Bad syntax.
 
 bad syntax; /*TS2304*/
 const x = 1 * * 2; /*TS1109*/
 const function () { } /*TS1134*/
 
-// Bad type semantics
+// Bad type semantics.
 
 abstract class Abstract {
     abstract method(): void;
@@ -38,7 +42,7 @@ function implicitAny(x) { /*strict TS7006*/
     x;
 }
 
-// Bad non-type semantics
+// Bad non-type semantics.
 
 const c = 1; /*strict TS6133*/
 c = 2; /*TS2540*/
@@ -51,7 +55,7 @@ function hasUnreachableCode() { /*strict TS6133*/
     return "can't get here"; /*strict TS7027*/
 }
 
-// Good code
+// Good code.
 
 let z: number = 6;
 z; // used

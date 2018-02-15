@@ -1,3 +1,4 @@
 
+export { TypeTest, DEFAULT_GROUP_NAME } from './TypeTest';
 export { Failure, FailureType, FileLocation } from './failure';
-export { TypeTest } from './TypeTest';
+export { TypeTestError, TestSetupError, TestFailureError } from './errors';

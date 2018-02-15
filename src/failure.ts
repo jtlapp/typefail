@@ -15,9 +15,9 @@ export interface FileLocation {
 export class Failure {
     constructor(
         public type: FailureType,
+        public at: FileLocation,
         public code?: number,
-        public message?: string,
-        public at?: FileLocation
+        public message?: string
     ) { }
 
     toErrorString() {
@@ -30,12 +30,7 @@ export class Failure {
         }
         const code = (this.code === undefined ? '' : ` TS${this.code}`);
         const message = (this.message === undefined ? '' : `: ${this.message}`);
-        const location = (this.at === undefined ? '' : ' at '+
-                tsutil.toFileLocation(this.at.fileName, this.at.lineNum, this.at.charNum));
-        return `${type}${code}${message}${location}`;
-    }
-
-    static combinedError(failures: Failure[]) {
-        return new Error(failures.map(failure => failure.toErrorString()).join("\n"));
+        const location = tsutil.toFileLocation(this.at.fileName, this.at.lineNum, this.at.charNum);
+        return `${type}${code}${message} at ${location}`;
     }
 }
