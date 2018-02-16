@@ -29,9 +29,10 @@ export function getNodeComments(nodeText: string, linesRead: number): CommentInf
         while (endOfPriorLine >= 0 && nodeText.charCodeAt(endOfPriorLine) !== LF) {
             --endOfPriorLine;
         }
+        const startOfLine = endOfPriorLine + 1;
         return {
-            lineNum: linesRead - countLFs(nodeText, range.end),
-            startOfLine: endOfPriorLine + 1,
+            lineNum: linesRead - countLFs(nodeText, startOfLine),
+            startOfLine: startOfLine,
             endOfComment: range.end
         };
     });

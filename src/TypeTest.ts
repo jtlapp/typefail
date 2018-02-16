@@ -103,16 +103,56 @@ export class TypeTest {
             }
         }
         else {
+            this._getProgram(); // make sure test has been run
             const fileIndex = this._getFileIndex(filePath);
             if (fileIndex === undefined) {
                 throw new Error(`File '${filePath}' not found`); // fatal error
             }
-            for (let groupName of fileIndex.keys()) {
-                for (let failure of fileIndex.get(groupName)!) {
-                    yield failure;
-                }
+            const failures = fileIndex.get(groupName);
+            if (failures === undefined) {
+                throw new Error(`Group '${groupName}' not found in file '${filePath}`);
+            }
+            for (let failure of failures) {
+                yield failure;
             }
         }
+    }
+
+    json(options?: { root?: string, spaces?: number }) {
+        options = options || {};
+        const root = options.root || '';
+        const spaces = options.spaces !== undefined ? options.spaces : 2;
+        const pojo = { files: <any[]>[] };
+
+        for (let filePath of this.files()) {
+            const normalizedFilePath = filePath.replace(root, '');
+            const file = { file: normalizedFilePath, groups: <any[]>[] };
+
+            for (let groupName of this.groups(filePath)) {
+                const group = { group: groupName, failures: <any[]>[] };
+
+                for (let failure of this.failures(filePath, groupName)) {
+                    let message = failure.message;
+                    if (message !== undefined) {
+                        message = message.replace(root, '');
+                    }
+                    group.failures.push({
+                        type: failure.type,
+                        at: {
+                            fileName: normalizedFilePath,
+                            lineNum: failure.at.lineNum,
+                            charNum: failure.at.charNum
+                        },
+                        code: failure.code,
+                        message: message
+                    });
+                }
+                file.groups.push(group);
+            }
+            pojo.files.push(file);
+        }
+
+        return JSON.stringify(pojo, null, spaces);
     }
 
     throwCombinedError(filePath = '*', groupName?: string) {
@@ -136,7 +176,7 @@ export class TypeTest {
 
     protected _getFileIndex(fileName: string) {
 
-        // Construct failureIndex on demand only as far as needed.
+        // Construct failureIndex on demand for files as needed.
 
         const cachedFileIndex = this.failureIndex.get(fileName);
         if (cachedFileIndex !== undefined) {
@@ -151,6 +191,7 @@ export class TypeTest {
         let groupExpectedErrors: ExpectedError[] = [];
         let candidateIndex = 0;
         let groupName = DEFAULT_GROUP_NAME;
+        let groupStartLineNum = 1;
 
         // Collect failures for all groups of the file but the last.
 
@@ -164,12 +205,14 @@ export class TypeTest {
                             groupExpectedErrors,
                             fileFailureCandidates,
                             candidateIndex,
+                            groupStartLineNum,
                             directive.targetLineNum
                         );
                         fileIndex.set(groupName, failures);
                         groupExpectedErrors = [];
                         candidateIndex = nextCandidateIndex;
                     }
+                    groupStartLineNum = directive.targetLineNum;
                     groupName = directive.groupName;
                 }
                 else if (directive instanceof ExpectErrorDirective) {
@@ -180,8 +223,13 @@ export class TypeTest {
 
         // Collect failures for the last group of the file.
 
-        const { failures } = this._getGroupFailures(groupExpectedErrors,
-                fileFailureCandidates, candidateIndex, Number.MAX_SAFE_INTEGER);
+        const { failures } = this._getGroupFailures(
+            groupExpectedErrors,
+            fileFailureCandidates,
+            candidateIndex,
+            groupStartLineNum,
+            Number.MAX_SAFE_INTEGER
+        );
         fileIndex.set(groupName, failures);
 
         // Cache the collected failures and return the file map.
@@ -283,11 +331,14 @@ export class TypeTest {
 
     private _getGroupFailures(expectedErrors: ExpectedError[],
             fileFailureCandidates: FailureCandidate[], candidateIndex: number,
-            nextGroupLineNum: number
+            groupStartLineNum: number, nextGroupLineNum: number
     ) {
+        function candidateFilter(candidate: FailureCandidate) {
+            const lineNum = candidate.at().lineNum;
+            return (lineNum >= groupStartLineNum && lineNum < nextGroupLineNum);
+        }
         const failures: Failure[] = [];
-        const groupFailureCandidates: FailureCandidate[] =
-            fileFailureCandidates.filter(candidate => candidate.at().lineNum < nextGroupLineNum);
+        const groupFailureCandidates = fileFailureCandidates.filter(candidateFilter);
         const nextCandidateIndex = candidateIndex + groupFailureCandidates.length;
         candidateIndex = 0; // repurpose for groupFailureCandidates
         let expectedErrorIndex = 0;
@@ -299,7 +350,7 @@ export class TypeTest {
 
         while(true) {
 
-            // Determine the next target line number and its associated values.
+            // Determine the next target line number and its first associated errors.
 
             let targetLineNum = Number.MAX_SAFE_INTEGER; // assume last group
             let failureCandidate: FailureCandidate | null = null; // at targetlineNum
@@ -367,17 +418,17 @@ export class TypeTest {
             // When all expected errors are found, additional errors for the
             // current target line are ignored.
 
-            if (!expectingAtLeastOneError || !foundAllExpectedErrors) {
-                // Scan starts from target line's first failure candidate.
-                while (candidateIndex < groupFailureCandidates.length &&
-                        groupFailureCandidates[candidateIndex].at().lineNum === targetLineNum
-                ) {
+            // Scan starts from target line's first failure candidate.
+            while (candidateIndex < groupFailureCandidates.length &&
+                    groupFailureCandidates[candidateIndex].at().lineNum === targetLineNum
+            ) {
+                if (!expectingAtLeastOneError || !foundAllExpectedErrors) {
                     const checkedCandidate = groupFailureCandidates[candidateIndex];
                     if (!checkedCandidate.wasExpected) {
                         failures.push(checkedCandidate.failure);
                     }
-                    ++candidateIndex; // advances until reaching next target line
                 }
+                ++candidateIndex; // advances until reaching next target line
             }
         }
         return { failures, nextCandidateIndex };

@@ -85,31 +85,26 @@ function _verifyErrors(fixtureFile: string) {
             throw err;
         }
         const actualErrors = err.message.split("\n");
-        let priorLineNum = 0;
 
         for (let i = 0; i < expectedErrors.length; ++i) {
             let actual = actualErrors[i];
             let expected = expectedErrors[i];
 
-            // Catch directives that falsely parse at their line numbers.
+            // Extract the actual line number and character number.
 
-            const matches = actual.match(/[.]ts:(\d+)/);
-            assert.isNotNull(matches, `extracting line number (${fixtureFile})`);
-            const failureLineNum = parseInt(matches![1]);
-            if (priorLineNum > 0) {
-                assert.isAtMost(failureLineNum, priorLineNum + 3,
-                        `next line number (${fixtureFile})`);
-            }
-            priorLineNum = failureLineNum;
+            const matches = actual.match(/:(\d+)(?::(\d+))?$/);
+            assert.isNotNull(matches, `extracting line/char numbers (${fixtureFile})`);
+            const actualLineNum = parseInt(matches![1]);
+            const actualCharNum = (matches![2] !== undefined ? parseInt(matches![2]) : undefined);
 
             // Check contents of reported failure.
 
-            assert.include(actual, expected.excerpt, `missing excerpt (${fixtureFile})`);
+            assert.strictEqual(actualLineNum, expected.lineNum, `line number (${fixtureFile})`);
             if (expected.charNum !== undefined) {
-                const actualCharNum = parseInt(actual.substr(actual.lastIndexOf(':') + 1));
                 assert.strictEqual(actualCharNum, expected.charNum, 
-                        `unexpected charNum at line ${failureLineNum} (${fixtureFile})`);
+                        `unexpected charNum at line ${actualLineNum} (${fixtureFile})`);
             }
+            assert.include(actual, expected.excerpt, `missing excerpt (${fixtureFile})`);
         }
         assert.strictEqual(actualErrors.length, expectedErrors.length,
                 `total errors (${fixtureFile})`);

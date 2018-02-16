@@ -73,7 +73,7 @@ export abstract class Directive {
         if (matches === null) {
             return null;
         }
-        const targetLineNum = file.getLineAndCharacterOfPosition(node.getStart()).line;
+        const targetLineNum = file.getLineAndCharacterOfPosition(node.getStart()).line + 1;
 
         // Extract the directive name.
 
