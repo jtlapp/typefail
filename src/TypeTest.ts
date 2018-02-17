@@ -3,7 +3,14 @@ import * as ts from "typescript";
 import * as minimatch from 'minimatch';
 import * as _ from 'lodash';
 import * as tsutil from './tsutil';
-import { Directive, GroupDirective, ExpectErrorDirective, ExpectedError } from './directives';
+import {
+    DirectiveConstraints,
+    Directive,
+    GroupDirective,
+    ExpectErrorDirective,
+    ExpectedError,
+    ErrorMatching
+} from './directives';
 import { FailureType, Failure } from './failure';
 import { TestSetupError, TestFailureError } from './errors';
 
@@ -13,7 +20,8 @@ import { TestSetupError, TestFailureError } from './errors';
 // TBD: option to permit only certain expected error syntaxes
 
 export interface TypeTestOptions {
-    compilerOptions: string | ts.CompilerOptions
+    compilerOptions: string | ts.CompilerOptions,
+    allowedErrorMatching?: ErrorMatching // bit flags
 }
 
 export const DEFAULT_GROUP_NAME = 'Default Group';
@@ -43,7 +51,9 @@ class FailureCandidate {
     }
 }
 
-export class TypeTest {
+export class TypeTest implements DirectiveConstraints {
+
+    allowedErrorMatching: ErrorMatching; // bit flags
 
     protected compilerOptions: ts.CompilerOptions;
     protected program: ts.Program | undefined; // undefined before run()
@@ -62,6 +72,7 @@ export class TypeTest {
         else {
             this.compilerOptions = options.compilerOptions;
         }
+        this.allowedErrorMatching = options.allowedErrorMatching || 0xFF;
     }
 
     run(bailOnFirstError = true) {
@@ -308,15 +319,21 @@ export class TypeTest {
         const comments = tsutil.getNodeComments(nodeText, fileMark.linesRead);
         if (comments !== null) {
             comments.forEach(comment => {
-                const result = Directive.parse(file, isFirstNode, node, nodeText, comment);
+                let result = Directive.parse(file, isFirstNode, node, nodeText, comment);
                 if (result !== null) {
                     if (result instanceof Directive) {
-                        directives.push(result);
-                        if (directives.length === 1) {
-                            this.directives.set(file.fileName, directives);
+                        const err = result.validate(this);
+                        if (err instanceof TestSetupError) {
+                            result = err;
+                        }
+                        else {
+                            directives.push(result);
+                            if (directives.length === 1) {
+                                this.directives.set(file.fileName, directives);
+                            }
                         }
                     }
-                    else { // result is a TestSetupError
+                    if (result instanceof TestSetupError) {
                         if (bailOnFirstError) {
                             throw result;
                         }

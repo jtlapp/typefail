@@ -27,6 +27,17 @@ interface Param {
     value: any // value of the parameter
 }
 
+export interface DirectiveConstraints {
+    allowedErrorMatching: ErrorMatching; // bit flags
+}
+
+export enum ErrorMatching {
+    Any = 1, // allow expected error to be any error
+    Code = 2, // allow matching error codes of expected errors
+    Exact = 4, // allow matching the exact error message
+    Regex = 8 // allow matching the error message against regex
+}
+
 export abstract class Directive {
 
     constructor(
@@ -36,7 +47,11 @@ export abstract class Directive {
         public targetLineNum: number
     ) { }
 
-    error(message: string, charNum: number) {
+    validate(constraints: DirectiveConstraints): TestSetupError | null {
+        return null;
+    }
+
+    error(message: string, charNum?: number) {
         return new TestSetupError(`'${Directive.toDirective(this.type)}' directive ${message} `+
                 `at ${tsutil.toFileLocation(this.fileName, this.directiveLineNum, charNum)}`);
     }
@@ -62,11 +77,11 @@ export abstract class Directive {
                 const tail = matches[3];
                 if (tail === undefined) {
                     return Directive.error(`${DIRECTIVE_PREFIX} directives must be single line`,
-                            file, commentInfo.lineNum);
+                            file.fileName, commentInfo.lineNum);
                 }
                 if (!tail.trimRight().endsWith('*/')) {
                     return Directive.error(`Code cannot follow a ${DIRECTIVE_PREFIX} directive`,
-                            file, commentInfo.lineNum);
+                            file.fileName, commentInfo.lineNum);
                 }
             }
         }
@@ -81,7 +96,7 @@ export abstract class Directive {
         matches = matches[2].match(REGEX_NAME_VALUE);
         if (matches === null) {
             return Directive.error(`${DIRECTIVE_PREFIX} directive name not specified`,
-                    file, commentInfo.lineNum, charNum);
+                    file.fileName, commentInfo.lineNum, charNum);
         }
         charNum += matches[1].length;
         const name = matches[1];
@@ -103,19 +118,19 @@ export abstract class Directive {
                 matches = pattern.match(REGEX_REGEX);
                 if (matches === null) {
                     return Directive.error(`Invalid ${DIRECTIVE_PREFIX} regex parameter`,
-                            file, commentInfo.lineNum, charNum);
+                            file.fileName, commentInfo.lineNum, charNum);
                 }
-                const flags = matches[2];
-                if (flags !== undefined) {
-                    for (let char of flags) {
+                const regexFlags = matches[2];
+                if (regexFlags !== undefined) {
+                    for (let char of regexFlags) {
                         if (VALID_REGEX_FLAGS.indexOf(char) === -1) {
                             return Directive.error(
                                 `Unrecognized ${DIRECTIVE_PREFIX} regex flags`,
-                                    file, commentInfo.lineNum, charNum);
+                                    file.fileName, commentInfo.lineNum, charNum);
                         }
                     }
                 }
-                params.push({ charNum, value: new RegExp(matches[1], flags) });
+                params.push({ charNum, value: new RegExp(matches[1], regexFlags) });
             }
 
             // Parse a string parameter.
@@ -129,7 +144,7 @@ export abstract class Directive {
                 }
                 if (matches === null) {
                     return Directive.error(`Invalid ${DIRECTIVE_PREFIX} string parameter`,
-                            file, commentInfo.lineNum, charNum);
+                            file.fileName, commentInfo.lineNum, charNum);
                 }
                 const value = matches[1].replace(/\\(['"\\])/g, '$1');
                 params.push({ charNum, value });
@@ -143,7 +158,7 @@ export abstract class Directive {
                     matches = matches[0].match(/^\d+$/);
                     if (matches === null) {
                         return Directive.error(`Invalid ${DIRECTIVE_PREFIX} integer parameter`,
-                                file, commentInfo.lineNum, charNum);
+                                file.fileName, commentInfo.lineNum, charNum);
                     }
                     params.push({ charNum, value: parseInt(matches[0]) });
                 }
@@ -153,7 +168,7 @@ export abstract class Directive {
 
             if (matches === null) {
                 return Directive.error(`Invalid ${DIRECTIVE_PREFIX} directive parameter`,
-                        file, commentInfo.lineNum, charNum);
+                        file.fileName, commentInfo.lineNum, charNum);
             }
 
             // Advance to the next parameter, if any.
@@ -174,7 +189,7 @@ export abstract class Directive {
 
                 if (offset < pattern.length && pattern.charCodeAt(offset) !== COMMA) {
                     return Directive.error(`Invalid ${DIRECTIVE_PREFIX} directive syntax`,
-                            file, commentInfo.lineNum, charNum);
+                            file.fileName, commentInfo.lineNum, charNum);
                 }
                 ++offset;
                 ++charNum;
@@ -191,7 +206,7 @@ export abstract class Directive {
                 pattern = pattern.substr(offset);
                 if (pattern === '') {
                     return Directive.error(`Expecting a ${DIRECTIVE_PREFIX} directive parameter`,
-                            file, commentInfo.lineNum, charNum);
+                            file.fileName, commentInfo.lineNum, charNum);
                 }
             }
         }
@@ -213,7 +228,7 @@ export abstract class Directive {
 
                 default:
                 return Directive.error(`Invalid directive name '${Directive.toDirective(name)}'`,
-                        file, commentInfo.lineNum);
+                        file.fileName, commentInfo.lineNum);
             }
         }
         catch (err) {
@@ -225,9 +240,9 @@ export abstract class Directive {
         return directive;
     }
 
-    static error(message: string, file: ts.SourceFile, lineNum: number, charNum?: number) {
+    static error(message: string, fileName: string, lineNum: number, charNum?: number) {
         return new TestSetupError(`${message} at `+
-                tsutil.toFileLocation(file.fileName, lineNum, charNum));
+                tsutil.toFileLocation(fileName, lineNum, charNum));
     }
 
     static toDirective(name: string) {
@@ -261,7 +276,7 @@ export class GroupDirective extends Directive {
 
 export class ExpectErrorDirective extends Directive {
 
-    fileName: string;
+    errorMatching: ErrorMatching; // error matching employed
     pattern: string | undefined;
     expectedErrors: ExpectedError[] = [];
 
@@ -276,6 +291,7 @@ export class ExpectErrorDirective extends Directive {
         if (params.length === 0) {
             this.expectedErrors.push(new ExpectedError(this, undefined, 'any error',
                 (failure) => true /*match any error*/));
+            this.errorMatching = ErrorMatching.Any;
         }
         else {
             const firstValue = params[0].value;
@@ -286,6 +302,7 @@ export class ExpectErrorDirective extends Directive {
                 const pattern = `/${firstValue.source}/${firstValue.flags}`;
                 this.expectedErrors.push(new ExpectedError(this, undefined, pattern,
                     (failure) => firstValue.test(failure.message!)));
+                this.errorMatching = ErrorMatching.Regex;
             }
             else if (typeof firstValue === 'string') {
                 if (params.length > 1) {
@@ -294,6 +311,7 @@ export class ExpectErrorDirective extends Directive {
                 const pattern = `"${firstValue.replace(/"/g, '\\"')}"`;
                 this.expectedErrors.push(new ExpectedError(this, undefined, pattern,
                     (failure) => failure.message === firstValue));
+                this.errorMatching = ErrorMatching.Exact;
             }
             else if (typeof firstValue === 'number') {
                 params.forEach(param => {
@@ -304,6 +322,7 @@ export class ExpectErrorDirective extends Directive {
                     this.expectedErrors.push(new ExpectedError(this, code, undefined,
                         (failure => failure.code === code)));
                 });
+                this.errorMatching = ErrorMatching.Code;
             }
             else {
                 throw this.error("invalid parameter", params[0].charNum);
@@ -315,6 +334,15 @@ export class ExpectErrorDirective extends Directive {
         this.expectedErrors.forEach(expectedError => {
             accumulatedExpectedErrors.push(expectedError);
         });
+    }
+
+    validate(constraints: DirectiveConstraints) {
+        if (this.errorMatching & constraints.allowedErrorMatching) {
+            return null;
+        }
+        return Directive.error(`Configuration does not allow `+
+                `${ErrorMatching[this.errorMatching].toLowerCase()} error matching`,
+                this.fileName, this.directiveLineNum);
     }
 }
 
