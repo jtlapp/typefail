@@ -2,6 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
+import * as _ from 'lodash';
 import { TypeTest, Failure, FailureType, FileLocation } from '../src';
 
 interface FailureInfo {
@@ -234,7 +235,46 @@ describe("mockup test", () => {
         _verifyFailures(typeTest, group9, []);
         done();
     });
+
+    const group10 = "Requires expected error only on the expected line";
+    it(group10, (done) => {
+
+        const failures: FailureInfo[] = [
+            {
+                "type": 1,
+                "at": {
+                    "fileName": "/test/fixtures/mock_test.ts",
+                    "lineNum": 102
+                },
+                "message": "/does not exist/"
+            },
+            {
+                "type": 0,
+                "at": {
+                    "fileName": "/test/fixtures/mock_test.ts",
+                    "lineNum": 104,
+                    "charNum": 12
+                },
+                "code": 2339,
+                "message": "Property 'notThere' does not exist on type 'typeof \"/test/fixtures/imports/compiles\"'."
+            },
+            {
+                "type": 0,
+                "at": {
+                    "fileName": "/test/fixtures/mock_test.ts",
+                    "lineNum": 108,
+                    "charNum": 5
+                },
+                "code": 2451,
+                "message": "Cannot redeclare block-scoped variable 'z2'."
+            }
+        ];
+        _verifyFailures(typeTest, group10, failures);
+        done();
+    });
 });
+
+// TBD: unexpected error text should be treated as substring searches
 
 function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures: FailureInfo[]) {
 
@@ -315,5 +355,6 @@ function _verifyMessages(actuals: string[], expecteds: string[], label: string) 
 }
 
 function _normalize(errorMessage: string) {
-    return errorMessage.replace(testDir, '');
+    const testDirRegex = new RegExp(_.escapeRegExp(testDir), 'g');
+    return errorMessage.replace(testDirRegex, '');
 }

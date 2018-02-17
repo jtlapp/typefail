@@ -10,11 +10,13 @@
     "test": "mocha --timeout 5000 -r ts-node/register"
   },
   "dependencies": {
+    "lodash": "^4.17.5",
     "minimatch": "^3.0.4",
     "typescript": "2.6.2"
   },
   "devDependencies": {
     "@types/chai": "^4.1.2",
+    "@types/lodash": "^4.14.104",
     "@types/minimatch": "^3.0.3",
     "@types/mocha": "^2.2.48",
     "@types/node": "^9.4.0",

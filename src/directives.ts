@@ -131,8 +131,7 @@ export abstract class Directive {
                     return Directive.error(`Invalid ${DIRECTIVE_PREFIX} string parameter`,
                             file, commentInfo.lineNum, charNum);
                 }
-                const value = matches[1].replace('\\"', '"').replace("\\'", "'")
-                        .replace("\\\\", '\\');
+                const value = matches[1].replace(/\\(['"\\])/g, '$1');
                 params.push({ charNum, value });
             }
 
@@ -292,7 +291,7 @@ export class ExpectErrorDirective extends Directive {
                 if (params.length > 1) {
                     throw this.error("invalid parameter", params[1].charNum);
                 }
-                const pattern = `"${firstValue.replace('"', '\\"')}"`;
+                const pattern = `"${firstValue.replace(/"/g, '\\"')}"`;
                 this.expectedErrors.push(new ExpectedError(this, undefined, pattern,
                     (failure) => failure.message === firstValue));
             }

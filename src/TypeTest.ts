@@ -1,21 +1,19 @@
 
 import * as ts from "typescript";
 import * as minimatch from 'minimatch';
+import * as _ from 'lodash';
 import * as tsutil from './tsutil';
 import { Directive, GroupDirective, ExpectErrorDirective, ExpectedError } from './directives';
 import { FailureType, Failure } from './failure';
 import { TestSetupError, TestFailureError } from './errors';
 
-// TBD: add support for directives of the form /* directive */
-// TBD: error on first pass if expected error value has invalid format
 // TBD: look at adding test labels for any node -- expecting errors or not
 // TBD: default load tsconfig.json, searching up dir tree (command line tool)
-// TBD: in order to be able to report an invalid directive name, I need a robust directive indicator syntax.
+// TBD: consider removing commas from directive params to clearly support flags
 // TBD: option to permit only certain expected error syntaxes
-// TBD: add style option regex that each directive comment must match
 
 export interface TypeTestOptions {
-    compilerOptions: string | ts.CompilerOptions // TBD: make optional
+    compilerOptions: string | ts.CompilerOptions
 }
 
 export const DEFAULT_GROUP_NAME = 'Default Group';
@@ -120,12 +118,12 @@ export class TypeTest {
 
     json(options?: { root?: string, spaces?: number }) {
         options = options || {};
-        const root = options.root || '';
+        const rootRegex = new RegExp(_.escapeRegExp(options.root || ''), 'g');
         const spaces = options.spaces !== undefined ? options.spaces : 2;
         const pojo = { files: <any[]>[] };
 
         for (let filePath of this.files()) {
-            const normalizedFilePath = filePath.replace(root, '');
+            const normalizedFilePath = filePath.replace(rootRegex, '');
             const file = { file: normalizedFilePath, groups: <any[]>[] };
 
             for (let groupName of this.groups(filePath)) {
@@ -134,7 +132,7 @@ export class TypeTest {
                 for (let failure of this.failures(filePath, groupName)) {
                     let message = failure.message;
                     if (message !== undefined) {
-                        message = message.replace(root, '');
+                        message = message.replace(rootRegex, '');
                     }
                     group.failures.push({
                         type: failure.type,
@@ -189,7 +187,7 @@ export class TypeTest {
         const fileFailureCandidates = this.failureCandidates.get(fileName) || [];
         let fileDirectives = this.directives.get(fileName);
         let groupExpectedErrors: ExpectedError[] = [];
-        let candidateIndex = 0;
+        let groupCandidateIndex = 0;
         let groupName = DEFAULT_GROUP_NAME;
         let groupStartLineNum = 1;
 
@@ -201,16 +199,16 @@ export class TypeTest {
                 if (directive instanceof GroupDirective) {
 
                     if (!directive.isFirstNode) {
-                        const { failures, nextCandidateIndex } = this._getGroupFailures(
+                        const { failures, nextGroupCandidateIndex } = this._getGroupFailures(
                             groupExpectedErrors,
                             fileFailureCandidates,
-                            candidateIndex,
+                            groupCandidateIndex,
                             groupStartLineNum,
                             directive.targetLineNum
                         );
                         fileIndex.set(groupName, failures);
                         groupExpectedErrors = [];
-                        candidateIndex = nextCandidateIndex;
+                        groupCandidateIndex = nextGroupCandidateIndex;
                     }
                     groupStartLineNum = directive.targetLineNum;
                     groupName = directive.groupName;
@@ -226,7 +224,7 @@ export class TypeTest {
         const { failures } = this._getGroupFailures(
             groupExpectedErrors,
             fileFailureCandidates,
-            candidateIndex,
+            groupCandidateIndex,
             groupStartLineNum,
             Number.MAX_SAFE_INTEGER
         );
@@ -329,87 +327,86 @@ export class TypeTest {
         }
     }
 
-    private _getGroupFailures(expectedErrors: ExpectedError[],
-            fileFailureCandidates: FailureCandidate[], candidateIndex: number,
+    private _getGroupFailures(groupExpectedErrors: ExpectedError[],
+            fileFailureCandidates: FailureCandidate[], groupCandidateIndex: number,
             groupStartLineNum: number, nextGroupLineNum: number
     ) {
-        function candidateFilter(candidate: FailureCandidate) {
-            const lineNum = candidate.at().lineNum;
-            return (lineNum >= groupStartLineNum && lineNum < nextGroupLineNum);
+        // Collect the present group's failure candidates.
+
+        const groupFailureCandidates = <FailureCandidate[]>[];
+        let candidateIndex = groupCandidateIndex;
+        while (candidateIndex < fileFailureCandidates.length &&
+                fileFailureCandidates[candidateIndex].at().lineNum < nextGroupLineNum)
+        {
+            groupFailureCandidates.push(fileFailureCandidates[candidateIndex++]);
         }
-        const failures: Failure[] = [];
-        const groupFailureCandidates = fileFailureCandidates.filter(candidateFilter);
-        const nextCandidateIndex = candidateIndex + groupFailureCandidates.length;
-        candidateIndex = 0; // repurpose for groupFailureCandidates
-        let expectedErrorIndex = 0;
 
         // Log failures for each target line of code. A target line is a line of
         // code that is either expecting errors or has produced errors. The loop
-        // examines each target line separately so that all failures are always
-        // reported in the order in which they occur.
+        // examines each target line separately to report failures in order.
 
-        while(true) {
+        const failures: Failure[] = []; // of entire group
+        let firstCandidateIndex = 0; // of target line
+        let expectedErrorIndex = 0; // of groupExpectedErrors
 
-            // Determine the next target line number and its first associated errors.
+        let { targetLineNum, expectedError, firstFailureCandidate } = this._nextTargetLine(
+            groupExpectedErrors, expectedErrorIndex, groupFailureCandidates, firstCandidateIndex);
 
-            let targetLineNum = Number.MAX_SAFE_INTEGER; // assume last group
-            let failureCandidate: FailureCandidate | null = null; // at targetlineNum
-            let expectedError: ExpectedError | null = null; // at targetLineNum
-
-            if (expectedErrorIndex < expectedErrors.length) {
-                expectedError = expectedErrors[expectedErrorIndex];
-                targetLineNum = expectedError.directive.targetLineNum;
-            }
-            if (candidateIndex < groupFailureCandidates.length) {
-                const candidateLineNum = groupFailureCandidates[candidateIndex]!.at().lineNum;
-                if (candidateLineNum < targetLineNum) {
-                    failureCandidate = groupFailureCandidates[candidateIndex];
-                    targetLineNum = candidateLineNum;
-                    expectedError = null; // directive applies to later target
-                }
-                else if (candidateLineNum === targetLineNum) {
-                    failureCandidate = groupFailureCandidates[candidateIndex];
-                }
-            }
-
-            // Exit loop when the next target line follows the current group.
-
-            if (targetLineNum >= nextGroupLineNum) {
-                break;
-            }
-
-            // For the current target line number, mark all failure candidates
-            // that were expected and log expected errors that are missing.
+        while (targetLineNum < nextGroupLineNum) {
 
             let expectingAtLeastOneError = (expectedError !== null);
             let foundAllExpectedErrors = true;
 
+            // Loop through all errors expected at the current target line,
+            // marking the failure candidates that were expected, and logging
+            // expected errors not appearing among the failure candidates.
+
             while (expectedError !== null) {
-                let targetCandidateIndex = candidateIndex; // restart scan of failure candidates
+
+                // Scan through all of the target line's failure candidates,
+                // marking all errors that the present expectedError expected.
+
+                let candidateIndex = firstCandidateIndex; // (re)start for target line
+                let failureCandidate = firstFailureCandidate; // (re)start for target line
                 let foundExpectedError = false;
+                // let failureCandidate = candidateIndex < groupFailureCandidates.length
+                //     ? groupFailureCandidates[candidateIndex]
+                //     : null;
+
                 while (failureCandidate !== null) {
                     if (expectedError.matches(failureCandidate.failure)) {
                         // mark expected; don't null or delete in case redundant directives
-                        groupFailureCandidates[targetCandidateIndex].wasExpected = true;
+                        failureCandidate.wasExpected = true;
                         foundExpectedError = true;
+                        // keep searching in case regex matches more than one error
                     }
-                    failureCandidate = null; // advance to next failure candidate of target line
-                    if (++targetCandidateIndex < groupFailureCandidates.length &&
-                            groupFailureCandidates[targetCandidateIndex].at().lineNum ===
-                                    targetLineNum
-                    ) {
-                        failureCandidate = groupFailureCandidates[targetCandidateIndex];
+
+                    // Advance to next failure candidate of target line, if any.
+
+                    failureCandidate = null;
+                    if (++candidateIndex < groupFailureCandidates.length) {
+                        const nextFailureCandidate = groupFailureCandidates[candidateIndex];
+                        if (nextFailureCandidate.at().lineNum === targetLineNum) {
+                            failureCandidate = nextFailureCandidate;
+                        }
                     }
                 }
+
+                // If the present expected error wasn't found, that's a test failure.
+
                 if (!foundExpectedError) {
                     foundAllExpectedErrors = false;
                     failures.push(expectedError.toFailure());
                 }
-                expectedError = null; // advance to next expected error of target line, if any
-                if (++expectedErrorIndex < expectedErrors.length &&
-                        expectedErrors[expectedErrorIndex].directive.targetLineNum === targetLineNum
-                ) {
-                    expectedError = expectedErrors[expectedErrorIndex];
+
+                // Advance to next expected error of target line, if any.
+
+                expectedError = null;
+                if (++expectedErrorIndex < groupExpectedErrors.length) {
+                    const nextExpectedError = groupExpectedErrors[expectedErrorIndex];
+                    if (nextExpectedError.directive.targetLineNum === targetLineNum) {
+                        expectedError = nextExpectedError;
+                    }
                 }
             }
 
@@ -419,18 +416,74 @@ export class TypeTest {
             // current target line are ignored.
 
             // Scan starts from target line's first failure candidate.
-            while (candidateIndex < groupFailureCandidates.length &&
-                    groupFailureCandidates[candidateIndex].at().lineNum === targetLineNum
+            while (firstCandidateIndex < groupFailureCandidates.length &&
+                    groupFailureCandidates[firstCandidateIndex].at().lineNum === targetLineNum
             ) {
                 if (!expectingAtLeastOneError || !foundAllExpectedErrors) {
-                    const checkedCandidate = groupFailureCandidates[candidateIndex];
+                    const checkedCandidate = groupFailureCandidates[firstCandidateIndex];
                     if (!checkedCandidate.wasExpected) {
                         failures.push(checkedCandidate.failure);
                     }
                 }
-                ++candidateIndex; // advances until reaching next target line
+                ++firstCandidateIndex; // advances until reaching next target line
+            }
+
+            // Set next loop iteration to process the next target line.
+
+            ({ targetLineNum, expectedError, firstFailureCandidate } = this._nextTargetLine(
+                groupExpectedErrors,
+                expectedErrorIndex,
+                groupFailureCandidates,
+                firstCandidateIndex
+            ));
+        }
+
+        return {
+            failures,
+            nextGroupCandidateIndex: groupCandidateIndex + groupFailureCandidates.length
+        };
+    }
+
+    _nextTargetLine(
+        groupExpectedErrors: ExpectedError[],
+        expectedErrorIndex: number,
+        groupFailureCandidates: FailureCandidate[],
+        candidateIndex: number
+    ) {
+        let targetLineNum = Number.MAX_SAFE_INTEGER; // assume last group
+        let firstFailureCandidate: FailureCandidate | null = null;
+        let nextExpectedError: ExpectedError | null = null;
+
+        // If we're expecting an error, default target line to line of that error.
+
+        if (expectedErrorIndex < groupExpectedErrors.length) {
+            nextExpectedError = groupExpectedErrors[expectedErrorIndex];
+            targetLineNum = nextExpectedError.directive.targetLineNum;
+        }
+
+        // If we have an actual error, change target line to line of that error
+        // if it precedes the so-far-assumed target line.
+
+        if (candidateIndex < groupFailureCandidates.length) {
+            const nextFailureCandidate = groupFailureCandidates[candidateIndex];
+            const candidateLineNum = nextFailureCandidate.at().lineNum;
+            if (candidateLineNum < targetLineNum) {
+                firstFailureCandidate = nextFailureCandidate;
+                targetLineNum = candidateLineNum;
+                nextExpectedError = null; // directive applies to later target
+            }
+            else if (candidateLineNum === targetLineNum) {
+                firstFailureCandidate = nextFailureCandidate;
             }
         }
-        return { failures, nextCandidateIndex };
+
+        // Having examined the next expected and actual errors, we not only know
+        // the next target line, but the next expected and/or actual errors.
+
+        return {
+            targetLineNum,
+            expectedError: nextExpectedError,
+            firstFailureCandidate
+        };
     }
 }
