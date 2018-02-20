@@ -1,36 +1,43 @@
 
 import * as tsutil from './tsutil';
 
-export enum FailureType {
-    UnexpectedError,
-    MissingError
+export interface Failure {
+    type: tsutil.FailureType;
+    at: tsutil.FileLocation;
+    code?: number;
+    message?: string;
+
+    toErrorString(): string;
 }
 
-export interface FileLocation {
-    fileName: string;
-    lineNum: number;
-    charNum?: number;
-}
+export interface RootedFailure extends Failure { }
+export class RootedFailure implements Failure {
+    protected rootRegex: RegExp | null;
 
-export class Failure {
     constructor(
-        public type: FailureType,
-        public at: FileLocation,
-        public code?: number,
-        public message?: string
-    ) { }
+        rootRegex: RegExp | null,
+        type: tsutil.FailureType,
+        at: tsutil.FileLocation,
+        code?: number,
+        message?: string
+    ) {
+        this.rootRegex = rootRegex;
+        this.type = type;
+        this.at = at;
+        this.code = code;
+        this.message = message;
+    }
 
     toErrorString() {
-        let type: string;
-        if (this.type === FailureType.MissingError) {
-            type = 'missing error';
+        let message = this.message;
+        if (message !== undefined) {
+            message = tsutil.normalizePaths(this.rootRegex, message);
         }
-        else {
-            type = 'error';
-        }
-        const code = (this.code === undefined ? '' : ` TS${this.code}`);
-        const message = (this.message === undefined ? '' : `: ${this.message}`);
-        const location = tsutil.toFileLocation(this.at.fileName, this.at.lineNum, this.at.charNum);
-        return `${type}${code}${message} at ${location}`;
+        const at = {
+            fileName: tsutil.normalizePaths(this.rootRegex, this.at.fileName),
+            lineNum: this.at.lineNum,
+            charNum: this.at.charNum
+        };
+        return tsutil.toErrorString(this.type, at, this.code, message);
     }
 }

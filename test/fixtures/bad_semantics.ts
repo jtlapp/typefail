@@ -1,7 +1,7 @@
 
 // Invalid directive semantics, though properly parsing.
 
-import { DirectiveError } from '../lib/DirectiveError';
+import { DirectiveError } from '../lib/testlib';
 
 export const errors: DirectiveError[] = [];
 let line = 7;

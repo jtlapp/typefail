@@ -10,6 +10,17 @@ export interface CommentInfo {
     endOfComment: number;
 }
 
+export enum FailureType {
+    UnexpectedError,
+    MissingError
+}
+
+export interface FileLocation {
+    fileName: string;
+    lineNum: number;
+    charNum?: number;
+}
+
 export function countLFs(text: string, nextIndex: number) {
     let count = 0;
     while ((nextIndex = text.indexOf('\n', nextIndex) + 1) > 0) {
@@ -38,6 +49,13 @@ export function getNodeComments(nodeText: string, linesRead: number): CommentInf
     });
 }
 
+export function normalizePaths(rootRegex: RegExp | null, fileName: string) {
+    if (rootRegex === null) {
+        return fileName;
+    }
+    return fileName.replace(rootRegex, '');
+}
+
 export function loadCompilerOptions(tsconfigPath: string) {
     const {config, error} = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
     if (error) {
@@ -49,6 +67,28 @@ export function loadCompilerOptions(tsconfigPath: string) {
         throw new Error(ts.flattenDiagnosticMessageText(errors[0].messageText, '\n'));
     }
     return options;
+}
+
+export function toErrorString(
+    type: FailureType,
+    at: FileLocation,
+    code?: number,
+    message?: string
+) {
+    let errorType: string;
+    if (type === FailureType.MissingError) {
+        errorType = 'missing error';
+    }
+    else {
+        errorType = 'error';
+    }
+
+    const codeStr = (code === undefined ? '' : ` TS${code}`);
+
+    message = (message === undefined ? '' : `: ${message}`);
+    let location = toFileLocation(at.fileName, at.lineNum, at.charNum);
+    
+    return `${errorType}${codeStr}${message} at ${location}`;
 }
 
 export function toFileLocation(fileName: string, lineNum: number, charNum?: number) {

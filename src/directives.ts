@@ -1,7 +1,7 @@
 
 import * as ts from 'typescript';
 import * as tsutil from './tsutil';
-import { FailureType, Failure } from './failure';
+import { Failure, RootedFailure } from './failure';
 import { TestSetupError } from './errors';
 
 const DIRECTIVE_PREFIX = 'typetest';
@@ -60,6 +60,7 @@ export abstract class Directive {
     // Returns null when the provided comment line is not a TypeTest directive.
 
     static parse(
+        rootRegex: RegExp | null,
         file: ts.SourceFile,
         isFirstNode: boolean,
         node: ts.Node,
@@ -222,7 +223,7 @@ export abstract class Directive {
                 break;
 
                 case DIRECTIVE_NAME_EXPECT_ERROR:
-                directive = new ExpectErrorDirective(file.fileName, commentInfo.lineNum,
+                directive = new ExpectErrorDirective(rootRegex, file.fileName, commentInfo.lineNum,
                         targetLineNum, params);
                 break;
 
@@ -281,6 +282,7 @@ export class ExpectErrorDirective extends Directive {
     expectedErrors: ExpectedError[] = [];
 
     constructor(
+        rootRegex: RegExp | null,
         fileName: string,
         directiveLineNum: number,
         targetLineNum: number,
@@ -289,7 +291,7 @@ export class ExpectErrorDirective extends Directive {
         super(DIRECTIVE_NAME_EXPECT_ERROR, fileName, directiveLineNum, targetLineNum);
 
         if (params.length === 0) {
-            this.expectedErrors.push(new ExpectedError(this, undefined, 'any error',
+            this.expectedErrors.push(new ExpectedError(rootRegex, this, undefined, 'any error',
                 (failure) => true /*match any error*/));
             this.errorMatching = ErrorMatching.Any;
         }
@@ -300,7 +302,7 @@ export class ExpectErrorDirective extends Directive {
                     throw this.error("invalid parameter", params[1].charNum);
                 }
                 const pattern = `/${firstValue.source}/${firstValue.flags}`;
-                this.expectedErrors.push(new ExpectedError(this, undefined, pattern,
+                this.expectedErrors.push(new ExpectedError(rootRegex, this, undefined, pattern,
                     (failure) => firstValue.test(failure.message!)));
                 this.errorMatching = ErrorMatching.Regex;
             }
@@ -309,7 +311,7 @@ export class ExpectErrorDirective extends Directive {
                     throw this.error("invalid parameter", params[1].charNum);
                 }
                 const pattern = `"${firstValue.replace(/"/g, '\\"')}"`;
-                this.expectedErrors.push(new ExpectedError(this, undefined, pattern,
+                this.expectedErrors.push(new ExpectedError(rootRegex, this, undefined, pattern,
                     (failure) => failure.message === firstValue));
                 this.errorMatching = ErrorMatching.Exact;
             }
@@ -319,7 +321,7 @@ export class ExpectErrorDirective extends Directive {
                         throw this.error("invalid parameter", param.charNum);
                     }
                     const code = param.value;
-                    this.expectedErrors.push(new ExpectedError(this, code, undefined,
+                    this.expectedErrors.push(new ExpectedError(rootRegex, this, code, undefined,
                         (failure => failure.code === code)));
                 });
                 this.errorMatching = ErrorMatching.Code;
@@ -348,6 +350,7 @@ export class ExpectErrorDirective extends Directive {
 
 export class ExpectedError {
     constructor(
+        public rootRegex: RegExp | null,
         public directive: ExpectErrorDirective,
         public code: number | undefined,
         public message: string | undefined,
@@ -355,8 +358,9 @@ export class ExpectedError {
     ) { }
 
     toFailure() {
-        return new Failure(
-            FailureType.MissingError,
+        return new RootedFailure(
+            this.rootRegex,
+            tsutil.FailureType.MissingError,
             {
                 fileName: this.directive.fileName,
                 lineNum: this.directive.targetLineNum

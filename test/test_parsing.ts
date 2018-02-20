@@ -3,17 +3,17 @@ import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
 import { TypeTest, FailureType, TestSetupError, DEFAULT_GROUP_NAME } from '../src';
-import { DirectiveError } from './lib/DirectiveError';
+import { DirectiveError } from './lib/testlib';
 
 const tsconfigFile = join(__dirname, 'fixtures/tsconfig.json');
 
-describe("directive", () => {
+describe("directives", () => {
 
-    it("parses when it should", (done) => {
+    it("parse when they should", (done) => {
 
         const testFile = join(__dirname, 'fixtures/good_syntax.ts');
         const expectedCounts = require(testFile).counts;
-        let typeTest = new TypeTest([testFile], {
+        let typeTest = new TypeTest(testFile, {
             compilerOptions: tsconfigFile
         });
         typeTest.run();
@@ -37,22 +37,22 @@ describe("directive", () => {
         done();
     });
 
-    it("doesn't parse when it shouldn't", (done) => {
+    it("don't parse when they shouldn't", (done) => {
 
         _verifyErrors('bad_syntax.ts');
         done();
     });
 
-    it("errors on invalid semantics", (done) => {
+    it("error on invalid semantics", (done) => {
 
         _verifyErrors('bad_semantics.ts');
         done();
     });
 
-    it("ignored in unrecognized contexts", (done) => {
+    it("are ignored in unrecognized contexts", (done) => {
 
         const testFile = join(__dirname, 'fixtures/ignored.ts');
-        let typeTest = new TypeTest([testFile], {
+        let typeTest = new TypeTest(testFile, {
             compilerOptions: tsconfigFile
         });
         typeTest.run();
@@ -72,7 +72,7 @@ function _verifyErrors(fixtureFile: string) {
     const testFile = join(__dirname, 'fixtures', fixtureFile);
     // Type not auto-retrieved because fixtures aren't compiled.
     const expectedErrors = <DirectiveError[]>require(testFile).errors;
-    let typeTest = new TypeTest([testFile], {
+    let typeTest = new TypeTest(testFile, {
         compilerOptions: tsconfigFile
     });
 

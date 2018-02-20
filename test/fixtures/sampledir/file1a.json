@@ -1,0 +1,39 @@
+{
+  "files": [
+    {
+      "file": "fixtures/sampledir/file1a.ts",
+      "groups": [
+        {
+          "group": "Uniquely errors unexpected-TS2345",
+          "failures": [
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/file1a.ts",
+                "lineNum": 7,
+                "charNum": 24
+              },
+              "code": 2345,
+              "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
+            }
+          ]
+        },
+        {
+          "group": "Uniquely errors unexpected-TS2339",
+          "failures": [
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/file1a.ts",
+                "lineNum": 11,
+                "charNum": 12
+              },
+              "code": 2339,
+              "message": "Property 'notThere' does not exist on type 'typeof \"fixtures/imports/compiles\"'."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

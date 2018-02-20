@@ -1,6 +1,8 @@
 
 import * as ts from "typescript";
 import * as minimatch from 'minimatch';
+import * as glob from 'glob';
+import * as path from 'path';
 import * as _ from 'lodash';
 import * as tsutil from './tsutil';
 import {
@@ -11,16 +13,18 @@ import {
     ExpectedError,
     ErrorMatching
 } from './directives';
-import { FailureType, Failure } from './failure';
+import { Failure, RootedFailure } from './failure';
 import { TestSetupError, TestFailureError } from './errors';
 
 // TBD: look at adding test labels for any node -- expecting errors or not
 // TBD: default load tsconfig.json, searching up dir tree (command line tool)
-// TBD: consider removing commas from directive params to clearly support flags
-// TBD: option to permit only certain expected error syntaxes
+// TBD: space-separated params should characterize the same error
+// TBD: maybe change 'expect-error' to 'errors'
+// TBD: look at simplifying code by indexing on root-relative filenames
 
 export interface TypeTestOptions {
     compilerOptions: string | ts.CompilerOptions,
+    rootPath?: string,
     allowedErrorMatching?: ErrorMatching // bit flags
 }
 
@@ -55,6 +59,11 @@ export class TypeTest implements DirectiveConstraints {
 
     allowedErrorMatching: ErrorMatching; // bit flags
 
+    protected rootPath: string | undefined;
+    protected rootRegex: RegExp | null = null;
+    protected expectedFileNames: string[] = [];
+    protected absoluteFileNames: string[] = [];
+    protected options: TypeTestOptions;
     protected compilerOptions: ts.CompilerOptions;
     protected program: ts.Program | undefined; // undefined before run()
     protected directives: Map<string, Directive[]>; // source file => directives
@@ -62,37 +71,96 @@ export class TypeTest implements DirectiveConstraints {
     protected failureCandidates: Map<string, FailureCandidate[]>; // source file => source errors
     protected failureIndex: Map<string, Map<string, Failure[]>>; // file => (group name => failures)
 
-    constructor(public fileNames: string[], public options: TypeTestOptions) {
-        this.directives = new Map<string, Directive[]>();
-        this.failureCandidates = new Map<string, FailureCandidate[]>();
-        this.failureIndex = new Map<string, Map<string, Failure[]>>();
+    constructor(filePaths: string | string[], options: TypeTestOptions) {
+
+        if (typeof filePaths === 'string') {
+            filePaths = [ filePaths ];
+        }
+        if (filePaths.length === 0) {
+            throw new Error("TypeType constructor requires at least one file");
+        }
+        filePaths.forEach(filePath => {
+
+            if (!glob.hasMagic(filePath)) {
+                this.expectedFileNames.push(filePath);
+            }
+            glob.sync(filePath).forEach(fileName => {
+
+                this.absoluteFileNames.push(fileName);
+            });
+        });
+        this.options = options;
+
         if (typeof options.compilerOptions === 'string') {
             this.compilerOptions = tsutil.loadCompilerOptions(options.compilerOptions);
         }
         else {
             this.compilerOptions = options.compilerOptions;
         }
+
+        this.rootPath = options.rootPath;
+        if (options.rootPath) {
+            let rootPath = options.rootPath;
+            if (rootPath.length > 0) {
+                if (rootPath[rootPath.length - 1] !== path.sep) {
+                    rootPath += path.sep;
+                }
+                this.rootRegex = new RegExp(_.escapeRegExp(rootPath), 'g');
+            }
+        }
+
         this.allowedErrorMatching = options.allowedErrorMatching || 0xFF;
+
+        this.directives = new Map<string, Directive[]>();
+        this.failureCandidates = new Map<string, FailureCandidate[]>();
+        this.failureIndex = new Map<string, Map<string, Failure[]>>();
     }
 
     run(bailOnFirstError = true) {
-        this.program = ts.createProgram(this.fileNames, this.compilerOptions);
-        // Must load errors first because compilers loads data on demand.
+
+        // Load and configure Typescript. Source files not yet parsed.
+
+        this.program = ts.createProgram(this.absoluteFileNames, this.compilerOptions);
+
+        // Confirm that the expected files were found.
+
+        const foundFileNames = this._foundFileNames();
+        this.expectedFileNames.forEach(expectedFileName => {
+
+            if (foundFileNames.indexOf(expectedFileName) < 0) {
+                this.setupErrorMessages.push(`Source file '${expectedFileName}' not found`);
+            }
+        });
+        if (this.setupErrorMessages.length === 0 && this.absoluteFileNames.length === 0) {
+            this.setupErrorMessages.push(`No source files were found to test`);
+        }
+
+        // Parse the source files and load the errors.
+
         this._loadErrors(bailOnFirstError);
+
+        // Once parsed, typetest directives can be extracted from the files.
+
         this._loadDirectives(bailOnFirstError);
+
         // If we have errors and didn't bail, we must be combining error messages.
+
         if (this.setupErrorMessages.length > 0) {
             throw new TestSetupError(this.setupErrorMessages.join(ERROR_DELIM));
         }
     }
+    
+    // paths must be specified relative to the root path, if there is one;
+    // empty string selects all files regardless of root path
 
-    files(filePath = '*') {
-        const mm = minimatch.filter(filePath, { matchBase: true });
-        return this._testFileNames().filter(mm);
+    files(filePath = '') {
+        return this._absoluteFiles(filePath).map(fileName => {
+            return tsutil.normalizePaths(this.rootRegex, fileName);
+        });
     }
 
-    *groups(filePath = '*') {
-        for (let file of this.files(filePath)) {
+    *groups(filePath = '') {
+        for (let file of this._absoluteFiles(filePath)) {
             const fileIndex = this._getFileIndex(file);
             for (let groupName of fileIndex.keys()) {
                 yield groupName;
@@ -100,9 +168,9 @@ export class TypeTest implements DirectiveConstraints {
         }
     }
 
-    *failures(filePath = '*', groupName?: string) {
+    *failures(filePath = '', groupName?: string) {
         if (groupName === undefined) {
-            for (let file of this.files(filePath)) {
+            for (let file of this._absoluteFiles(filePath)) {
                 const fileIndex = this._getFileIndex(file);
                 for (let groupName of fileIndex.keys()) {
                     for (let failure of fileIndex.get(groupName)!) {
@@ -113,6 +181,7 @@ export class TypeTest implements DirectiveConstraints {
         }
         else {
             this._getProgram(); // make sure test has been run
+            filePath = this._toAbsoluteFile(filePath);
             const fileIndex = this._getFileIndex(filePath);
             if (fileIndex === undefined) {
                 throw new Error(`File '${filePath}' not found`); // fatal error
@@ -127,28 +196,34 @@ export class TypeTest implements DirectiveConstraints {
         }
     }
 
-    json(options?: { root?: string, spaces?: number }) {
-        options = options || {};
-        const rootRegex = new RegExp(_.escapeRegExp(options.root || ''), 'g');
-        const spaces = options.spaces !== undefined ? options.spaces : 2;
+    json(spaces?: number) {
         const pojo = { files: <any[]>[] };
+        if (spaces === undefined) {
+            spaces = 2;
+        }
 
         for (let filePath of this.files()) {
-            const normalizedFilePath = filePath.replace(rootRegex, '');
-            const file = { file: normalizedFilePath, groups: <any[]>[] };
+            const normalizedFile = tsutil.normalizePaths(this.rootRegex, filePath);
+            const file = { 
+                file: normalizedFile,
+                groups: <any[]>[]
+            };
 
             for (let groupName of this.groups(filePath)) {
-                const group = { group: groupName, failures: <any[]>[] };
+                const group = {
+                    group: groupName,
+                    failures: <any[]>[]
+                };
 
                 for (let failure of this.failures(filePath, groupName)) {
                     let message = failure.message;
                     if (message !== undefined) {
-                        message = message.replace(rootRegex, '');
+                        message = tsutil.normalizePaths(this.rootRegex, message);
                     }
                     group.failures.push({
                         type: failure.type,
                         at: {
-                            fileName: normalizedFilePath,
+                            fileName: normalizedFile,
                             lineNum: failure.at.lineNum,
                             charNum: failure.at.charNum
                         },
@@ -164,7 +239,7 @@ export class TypeTest implements DirectiveConstraints {
         return JSON.stringify(pojo, null, spaces);
     }
 
-    throwCombinedError(filePath = '*', groupName?: string) {
+    throwCombinedError(filePath = '', groupName?: string) {
         const failures: Failure[] = [];
         // There are more performant solutions, but this is simplest.
         for (let failure of this.failures(filePath, groupName)) {
@@ -177,10 +252,16 @@ export class TypeTest implements DirectiveConstraints {
         }
     }
 
-    throwFirstError(filePath = '*', groupName?: string) {
+    throwFirstError(filePath = '', groupName?: string) {
         for (let failure of this.failures(filePath, groupName)) {
             throw new TestFailureError(failure.toErrorString(), failure.code);
         }
+    }
+
+    protected _absoluteFiles(filePath: string) {
+        filePath = this._toAbsoluteFile(filePath);
+        const mm = minimatch.filter(filePath, { matchBase: true });
+        return this._foundFileNames().filter(mm);
     }
 
     protected _getFileIndex(fileName: string) {
@@ -249,7 +330,7 @@ export class TypeTest implements DirectiveConstraints {
 
     protected _getProgram() {
         if (this.program === undefined) {
-            throw new Error(`Test has not yet been run`); // fatal error
+            throw new Error(`TypeTest has not yet been run`); // fatal error
         }
         return this.program;
     }
@@ -257,7 +338,7 @@ export class TypeTest implements DirectiveConstraints {
     protected _loadDirectives(bailOnFirstError: boolean) {
         const program = this._getProgram();
         const sourceFiles = program.getSourceFiles().filter(file => {
-            return (this._testFileNames().indexOf(file.fileName) >= 0);
+            return (this._foundFileNames().indexOf(file.fileName) >= 0);
         });
 
         for (let file of sourceFiles) {
@@ -281,8 +362,9 @@ export class TypeTest implements DirectiveConstraints {
                 const fileName = diagnostic.file.fileName;
                 const { line, character } =
                         diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start!);
-                const failure = new Failure(
-                    FailureType.UnexpectedError,
+                const failure = new RootedFailure(
+                    this.rootRegex,
+                    tsutil.FailureType.UnexpectedError,
                     { fileName, lineNum: line + 1, charNum: character + 1 },
                     code,
                     message
@@ -303,7 +385,7 @@ export class TypeTest implements DirectiveConstraints {
         });
     }
 
-    protected _testFileNames() {
+    protected _foundFileNames() {
         return this._getProgram().getRootFileNames();
     }
 
@@ -319,7 +401,8 @@ export class TypeTest implements DirectiveConstraints {
         const comments = tsutil.getNodeComments(nodeText, fileMark.linesRead);
         if (comments !== null) {
             comments.forEach(comment => {
-                let result = Directive.parse(file, isFirstNode, node, nodeText, comment);
+                let result = Directive.parse(this.rootRegex, file, isFirstNode, node, nodeText,
+                        comment);
                 if (result !== null) {
                     if (result instanceof Directive) {
                         const err = result.validate(this);
@@ -461,7 +544,7 @@ export class TypeTest implements DirectiveConstraints {
         };
     }
 
-    _nextTargetLine(
+    private _nextTargetLine(
         groupExpectedErrors: ExpectedError[],
         expectedErrorIndex: number,
         groupFailureCandidates: FailureCandidate[],
@@ -502,5 +585,15 @@ export class TypeTest implements DirectiveConstraints {
             expectedError: nextExpectedError,
             firstFailureCandidate
         };
+    }
+
+    private _toAbsoluteFile(filePath: string) {
+        if (filePath === '') {
+            return '*';
+        }
+        if (filePath[0] !== path.sep && this.rootPath !== undefined) {
+            return path.join(this.rootPath, filePath);
+        }
+        return filePath;
     }
 }

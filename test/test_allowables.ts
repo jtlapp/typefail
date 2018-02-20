@@ -7,11 +7,11 @@ import { TypeTest, TestSetupError, ErrorMatching } from '../src';
 const tsconfigFile = join(__dirname, 'fixtures/tsconfig.json');
 const testFile = join(__dirname, 'fixtures/allowed_matching.ts');
 
-describe("error matching", () => {
+describe("allowed error matching", () => {
 
     it("allows all error matching be default", (done) => {
 
-        let typeTest = new TypeTest([testFile], {
+        let typeTest = new TypeTest(testFile, {
             compilerOptions: tsconfigFile
         });
         typeTest.run();
@@ -25,7 +25,7 @@ describe("error matching", () => {
 
     it("can restrict to only 'any' error matching", (done) => {
 
-        let typeTest = new TypeTest([testFile], {
+        let typeTest = new TypeTest(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Any
         });
@@ -35,7 +35,7 @@ describe("error matching", () => {
 
     it("can restrict to only 'code' error matching", (done) => {
 
-        let typeTest = new TypeTest([testFile], {
+        let typeTest = new TypeTest(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Code
         });
@@ -45,7 +45,7 @@ describe("error matching", () => {
 
     it("can restrict to only 'exact' error matching", (done) => {
 
-        let typeTest = new TypeTest([testFile], {
+        let typeTest = new TypeTest(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Exact
         });
@@ -55,7 +55,7 @@ describe("error matching", () => {
 
     it("can restrict to only 'regex' error matching", (done) => {
 
-        let typeTest = new TypeTest([testFile], {
+        let typeTest = new TypeTest(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Regex
         });
@@ -65,7 +65,7 @@ describe("error matching", () => {
 
     it("can restrict to only 'code' and 'regex' error matching", (done) => {
 
-        let typeTest = new TypeTest([testFile], {
+        let typeTest = new TypeTest(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Code | ErrorMatching.Regex
         });

@@ -1,24 +1,19 @@
 
 import 'mocha';
 import { assert } from 'chai';
-import { join } from 'path';
-import * as _ from 'lodash';
-import { TypeTest, Failure, FailureType, FileLocation } from '../src';
+import * as path from 'path';
+import { TypeTest, toErrorString } from '../src';
+import { FailureInfo, verifyErrorMessages } from './lib/testlib';
 
-interface FailureInfo {
-    type: FailureType,
-    at: FileLocation,
-    code?: number,
-    message?: string
-}
-
-const testDir = join(__dirname, '..');
-const testFile = join(__dirname, 'fixtures/mock_test.ts');
-const tsconfigFile = join(__dirname, 'fixtures/tsconfig.json');
+const testFile = path.join(__dirname, 'fixtures/mock_test.ts');
+const tsconfigFile = path.join(__dirname, 'fixtures/tsconfig.json');
 
 describe("mockup test", () => {
 
-    const typeTest = new TypeTest([testFile], { compilerOptions: tsconfigFile });
+    const typeTest = new TypeTest(testFile, {
+        compilerOptions: tsconfigFile,
+        rootPath: __dirname
+    });
     typeTest.run();
 
     const group1 = "Passes when there are no expected errors";
@@ -63,7 +58,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 58
                 },
                 "message": "\"Not a real error.\""
@@ -71,7 +66,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 60
                 },
                 "code": 2451
@@ -79,7 +74,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 65
                 },
                 "code": 2451
@@ -87,7 +82,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 65
                 },
                 "code": 2540
@@ -104,7 +99,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 70
                 },
                 "code": 2000
@@ -112,7 +107,7 @@ describe("mockup test", () => {
             {
                 "type": 0,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 70,
                     "charNum": 24
                 },
@@ -122,7 +117,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 73
                 },
                 "code": 2000
@@ -130,7 +125,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 73
                 },
                 "code": 2001
@@ -138,7 +133,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 73
                 },
                 "code": 2002
@@ -146,7 +141,7 @@ describe("mockup test", () => {
             {
                 "type": 0,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 73,
                     "charNum": 1
                 },
@@ -156,7 +151,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 76
                 },
                 "message": "\"'q' is not a descriptive variable name.\""
@@ -164,7 +159,7 @@ describe("mockup test", () => {
             {
                 "type": 0,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 76,
                     "charNum": 5
                 },
@@ -174,7 +169,7 @@ describe("mockup test", () => {
             {
                 "type": 0,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 76,
                     "charNum": 5
                 },
@@ -193,7 +188,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 82
                 },
                 "message": "/constant|read-only/"
@@ -201,7 +196,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 86
                 },
                 "message": "/constant|read-only/"
@@ -209,7 +204,7 @@ describe("mockup test", () => {
             {
                 "type": 0,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 86,
                     "charNum": 11
                 },
@@ -219,7 +214,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 90
                 },
                 "code": 2363
@@ -243,7 +238,7 @@ describe("mockup test", () => {
             {
                 "type": 1,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 102
                 },
                 "message": "/does not exist/"
@@ -251,17 +246,17 @@ describe("mockup test", () => {
             {
                 "type": 0,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 104,
                     "charNum": 12
                 },
                 "code": 2339,
-                "message": "Property 'notThere' does not exist on type 'typeof \"/test/fixtures/imports/compiles\"'."
+                "message": "Property 'notThere' does not exist on type 'typeof \"fixtures/imports/compiles\"'."
             },
             {
                 "type": 0,
                 "at": {
-                    "fileName": "/test/fixtures/mock_test.ts",
+                    "fileName": "fixtures/mock_test.ts",
                     "lineNum": 108,
                     "charNum": 5
                 },
@@ -282,8 +277,7 @@ function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures
 
     const expectedErrors = expectedFailures.map(expected => {
 
-        const failure = new Failure(expected.type, expected.at, expected.code, expected.message);
-        return failure.toErrorString();
+        return toErrorString(expected.type, expected.at, expected.code, expected.message);
     });
 
     // Verify typeTest.failures() behavior.
@@ -292,7 +286,7 @@ function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures
     for (let failure of typeTest.failures(testFile, groupName)) {
         actualErrors.push(failure.toErrorString());
     }
-    _verifyMessages(actualErrors, expectedErrors, 'in failures()');
+    verifyErrorMessages(actualErrors, expectedErrors, 'in failures()');
 
     // Verify typeTest.throwCombinedError() behavior.
 
@@ -308,7 +302,7 @@ function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures
             assert(false, 'expected errors not thrown in throwCombinedError()');
         }
         catch (err) {
-            _verifyMessages(err.message.split("\n"), expectedErrors, 'in throwCombinedError()');
+            verifyErrorMessages(err.message.split("\n"), expectedErrors, 'in throwCombinedError()');
         }
     }
 
@@ -326,35 +320,7 @@ function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures
             assert(false, 'expected error not thrown in throwFirstError()');
         }
         catch (err) {
-            assert.strictEqual(_normalize(err.message), expectedErrors[0],
-                    'error in throwFirstError()');
+            assert.strictEqual(err.message, expectedErrors[0], 'error in throwFirstError()');
         }
     }
-}
-
-function _verifyMessages(actuals: string[], expecteds: string[], label: string) {
-
-    // Require each actual error to be among the expected errors.
-
-    expecteds = expecteds.slice(); // work with a copy
-    for (let actualError of actuals) {
-        actualError = _normalize(actualError);
-        assert.include(expecteds, actualError, `unexpected error ${label}`);
-        expecteds[expecteds.indexOf(actualError)] = '';
-    }
-
-    // Require each expected error to be among the actual errors.
-
-    const missingErrors: string[] = [];
-    for (let expectedError of expecteds) {
-        if (expectedError !== '') {
-            missingErrors.push(expectedError);
-        }
-    }
-    assert.deepEqual(missingErrors, [], `expected error is missing ${label}`);
-}
-
-function _normalize(errorMessage: string) {
-    const testDirRegex = new RegExp(_.escapeRegExp(testDir), 'g');
-    return errorMessage.replace(testDirRegex, '');
 }

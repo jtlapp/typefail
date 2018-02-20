@@ -1,0 +1,256 @@
+{
+  "files": [
+    {
+      "file": "fixtures/sampledir/file1a.ts",
+      "groups": [
+        {
+          "group": "Uniquely errors unexpected-TS2345",
+          "failures": [
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/file1a.ts",
+                "lineNum": 7,
+                "charNum": 24
+              },
+              "code": 2345,
+              "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
+            }
+          ]
+        },
+        {
+          "group": "Uniquely errors unexpected-TS2339",
+          "failures": [
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/file1a.ts",
+                "lineNum": 11,
+                "charNum": 12
+              },
+              "code": 2339,
+              "message": "Property 'notThere' does not exist on type 'typeof \"fixtures/imports/compiles\"'."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fixtures/sampledir/file1b.ts",
+      "groups": [
+        {
+          "group": "Uniquely errors unexpected-TS2322",
+          "failures": [
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/file1b.ts",
+                "lineNum": 7,
+                "charNum": 5
+              },
+              "code": 2322,
+              "message": "Type 'number' is not assignable to type 'string'."
+            }
+          ]
+        },
+        {
+          "group": "Uniquely errors missing-TS2345",
+          "failures": [
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/file1b.ts",
+                "lineNum": 13
+              },
+              "code": 2345
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fixtures/sampledir/file2a.ts",
+      "groups": [
+        {
+          "group": "Uniquely errors missing-TS2451",
+          "failures": [
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/file2a.ts",
+                "lineNum": 5
+              },
+              "code": 2451
+            }
+          ]
+        },
+        {
+          "group": "Uniquely errors missing-TS2322",
+          "failures": [
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/file2a.ts",
+                "lineNum": 11
+              },
+              "code": 2322
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fixtures/sampledir/subdir/subfile1a.ts",
+      "groups": [
+        {
+          "group": "Uniquely errors unexpected-TS2345 and unexpected-TS2339",
+          "failures": [
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile1a.ts",
+                "lineNum": 7,
+                "charNum": 24
+              },
+              "code": 2345,
+              "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
+            },
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile1a.ts",
+                "lineNum": 8,
+                "charNum": 12
+              },
+              "code": 2339,
+              "message": "Property 'notThere' does not exist on type 'typeof \"fixtures/imports/compiles\"'."
+            }
+          ]
+        },
+        {
+          "group": "Uniquely errors unexpected-TS2339 and unexpected-TS2322",
+          "failures": [
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile1a.ts",
+                "lineNum": 12,
+                "charNum": 12
+              },
+              "code": 2339,
+              "message": "Property 'notThere' does not exist on type 'typeof \"fixtures/imports/compiles\"'."
+            },
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile1a.ts",
+                "lineNum": 13,
+                "charNum": 5
+              },
+              "code": 2322,
+              "message": "Type 'number' is not assignable to type 'string'."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fixtures/sampledir/subdir/subfile2a.ts",
+      "groups": [
+        {
+          "group": "Uniquely errors unexpected-TS2345 and missing-TS2451",
+          "failures": [
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile2a.ts",
+                "lineNum": 7,
+                "charNum": 24
+              },
+              "code": 2345,
+              "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
+            },
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile2a.ts",
+                "lineNum": 9
+              },
+              "code": 2451
+            }
+          ]
+        },
+        {
+          "group": "Uniquely errors missing-TS2345 and missing-TS2451",
+          "failures": [
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile2a.ts",
+                "lineNum": 15
+              },
+              "code": 2345
+            },
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile2a.ts",
+                "lineNum": 17
+              },
+              "code": 2451
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "fixtures/sampledir/subdir/subfile2b.ts",
+      "groups": [
+        {
+          "group": "Uniquely errors missing-TS2451 and missing-TS2322",
+          "failures": [
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile2b.ts",
+                "lineNum": 8
+              },
+              "code": 2451
+            },
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile2b.ts",
+                "lineNum": 11
+              },
+              "code": 2322
+            }
+          ]
+        },
+        {
+          "group": "Uniquely errors missing-TS2322 and unexpected-TS2345",
+          "failures": [
+            {
+              "type": 1,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile2b.ts",
+                "lineNum": 17
+              },
+              "code": 2322
+            },
+            {
+              "type": 0,
+              "at": {
+                "fileName": "fixtures/sampledir/subdir/subfile2b.ts",
+                "lineNum": 19,
+                "charNum": 24
+              },
+              "code": 2345,
+              "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
