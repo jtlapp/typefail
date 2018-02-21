@@ -2,7 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
-import { TypeTest, FailureType, TestSetupError } from '../src';
+import { FailChecker, FailureType, CheckerSetupError } from '../src';
 import { DirectiveError } from './lib/testlib';
 
 const tsconfigFile = join(__dirname, 'fixtures/tsconfig.json');
@@ -13,13 +13,13 @@ describe("directives", () => {
 
         const testFile = join(__dirname, 'fixtures/good_syntax.ts');
         const expectedCounts = require(testFile).counts;
-        let typeTest = new TypeTest(testFile, {
+        let checker = new FailChecker(testFile, {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
+        checker.run();
 
         let actualGroupCount = 0;
-        for (let group of typeTest.groups()) {
+        for (let group of checker.groups()) {
             ++actualGroupCount;
             const matches = group.match(/\d+/);
             assert.isNotNull(matches);
@@ -28,7 +28,7 @@ describe("directives", () => {
         assert.strictEqual(actualGroupCount, expectedCounts.groups, 'groups');
 
         let actualFailureCount = 0;
-        for (let failure of typeTest.failures()) {
+        for (let failure of checker.failures()) {
             ++actualFailureCount;
             assert.strictEqual(failure.type, FailureType.MissingError);
         }
@@ -52,16 +52,16 @@ describe("directives", () => {
     it("are ignored in unrecognized contexts", (done) => {
 
         const testFile = join(__dirname, 'fixtures/ignored.ts');
-        let typeTest = new TypeTest(testFile, {
+        let checker = new FailChecker(testFile, {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
+        checker.run();
 
-        const groups = typeTest.groups();
-        assert.strictEqual(groups.next().value, TypeTest.DEFAULT_GROUP_NAME);
+        const groups = checker.groups();
+        assert.strictEqual(groups.next().value, FailChecker.DEFAULT_GROUP_NAME);
         assert(groups.next().done, "should only be one group");
 
-        const failures = typeTest.failures();
+        const failures = checker.failures();
         assert(failures.next().done, "should be no failures");
         
         done();
@@ -72,19 +72,19 @@ function _verifyErrors(fixtureFile: string) {
     const testFile = join(__dirname, 'fixtures', fixtureFile);
     // Type not auto-retrieved because fixtures aren't compiled.
     const expectedErrors = <DirectiveError[]>require(testFile).errors;
-    let typeTest = new TypeTest(testFile, {
+    let checker = new FailChecker(testFile, {
         compilerOptions: tsconfigFile
     });
 
     try {
-        typeTest.run(false);
+        checker.run(false);
         assert(false, `should have failed on setup (${fixtureFile})`);
     }
     catch (err) {
-        if (!(err instanceof TestSetupError)) {
+        if (!(err instanceof CheckerSetupError)) {
             throw err;
         }
-        const actualErrors = err.message.split(TypeTest.ERROR_DELIM);
+        const actualErrors = err.message.split(FailChecker.ERROR_DELIM);
 
         for (let i = 0; i < expectedErrors.length; ++i) {
             let actual = actualErrors[i];

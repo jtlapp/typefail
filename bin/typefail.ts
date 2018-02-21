@@ -1,18 +1,18 @@
 
 import * as Minimist from 'minimist';
 import * as path from 'path';
-import { TypeTest, TypeTestError } from '../src';
+import { FailChecker, CheckerError } from '../src';
 
 const help = `
-TYPETEST -- A tool for testing Typescript compile-time errors
+TYPEFAIL -- A tool for testing Typescript compile-time errors
 
-Heeds typetest directives embedded in source files to test for expected and
+Heeds typefail directives embedded in source files to test for expected and
 unexpected Typescript compile-time errors. Particularly useful for testing
 typings -- both type assignments that should not produce errors and type
 assignments that should produce errors. Optionally organizes compile-time
 expected/unexpected errors into groups for group-level testing and reporting.
 
-Syntax: typetest <option>* <source-path>+
+Syntax: typefail <option>* <source-path>+
 
 <source-path> - file name or glob expression for souce file(s) to test, which
     may be expressed relative to the current working directory
@@ -66,7 +66,7 @@ if (typeof tsconfigFile === 'string') {
     tsconfigFile = path.join(process.cwd(), tsconfigFile);
 }
 else {
-    tsconfigFile = TypeTest.findNearestConfigFile(sourceFiles);
+    tsconfigFile = FailChecker.findNearestConfigFile(sourceFiles);
     if (tsconfigFile === null) {
         throw new Error("tsconfig.json not found");
     }
@@ -79,17 +79,17 @@ if (typeof rootPath === 'string') {
 
 // Load the indicated files for testing.
 
-const typeTest = new TypeTest(sourceFiles, {
+const checker = new FailChecker(sourceFiles, {
     compilerOptions: tsconfigFile,
     rootPath: rootPath
 });
 try {
-    typeTest.run(args.bail);
+    checker.run(args.bail);
 }
 catch (err) {
-    if (err instanceof TypeTestError) {
+    if (err instanceof CheckerError) {
         console.log(err.message);
-        console.log("** failed to perform testing");
+        console.log("** failed to perform test");
         process.exit(1);
     }
     else {
@@ -104,7 +104,7 @@ if (typeof args.json === 'string') {
     if (isNaN(spaces)) {
         spaces = 2;
     }
-    console.log(typeTest.json(spaces));
+    console.log(checker.json(spaces));
     process.exit(0);
 }
 
@@ -112,25 +112,25 @@ if (typeof args.json === 'string') {
 
 let totalFailureCount = 0;
 
-for (let file of typeTest.files()) {
+for (let file of checker.files()) {
     let fileFailureCount = 0;
     console.log(`\n${file}:`);
 
-    for (let group of typeTest.groups(file)) {
+    for (let group of checker.groups(file)) {
         console.log(`\n  ${group}:`);
 
         try {
             if (args.bail) {
-                typeTest.throwFirstError(file, group);
+                checker.throwFirstError(file, group);
             }
             else {
-                typeTest.throwCombinedError(file, group);
+                checker.throwCombinedError(file, group);
             }
             console.log(`    Group test passed`);
         }
         catch (err) {
-            if (err instanceof TypeTestError) {
-                err.message.split(TypeTest.ERROR_DELIM).forEach(message => {
+            if (err instanceof CheckerError) {
+                err.message.split(FailChecker.ERROR_DELIM).forEach(message => {
 
                     ++fileFailureCount;
                     console.log(`    ${message}`);

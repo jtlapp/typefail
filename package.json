@@ -1,9 +1,9 @@
 {
-  "name": "typetest",
+  "name": "typefail",
   "version": "0.2.0",
   "description": "Test for expected compile-time errors in Typescript",
   "main": "index.js",
-  "repository": "https://github.com/jtlapp/typetest.git",
+  "repository": "https://github.com/jtlapp/typefail.git",
   "author": "Joseph T. Lapp <arachnojoe@gmail.com>",
   "license": "MIT",
   "scripts": {

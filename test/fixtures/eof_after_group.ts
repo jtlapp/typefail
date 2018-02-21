@@ -1,1 +1,1 @@
-// typetest:group "Nothing follows this group"
+// typefail:group "Nothing follows this group"

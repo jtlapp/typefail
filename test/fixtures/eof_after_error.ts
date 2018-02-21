@@ -1,1 +1,1 @@
-// typetest:error "Nothing follows this error declaration"
+// typefail:error "Nothing follows this error declaration"

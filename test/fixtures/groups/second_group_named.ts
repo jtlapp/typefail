@@ -1,6 +1,6 @@
 
 console.log("A");
 
-// typetest:group "Second group"
+// typefail:group "Second group"
 
 console.log("B");

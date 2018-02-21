@@ -2,7 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
-import { TypeTest, TestSetupError, ErrorMatching } from '../src';
+import { FailChecker, CheckerSetupError, ErrorMatching } from '../src';
 
 const tsconfigFile = join(__dirname, 'fixtures/tsconfig.json');
 const testFile = join(__dirname, 'fixtures/allowed_matching.ts');
@@ -11,76 +11,76 @@ describe("allowed error matching", () => {
 
     it("allows all error matching be default", (done) => {
 
-        let typeTest = new TypeTest(testFile, {
+        let checker = new FailChecker(testFile, {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
+        checker.run();
 
         assert.doesNotThrow(() => {
 
-            typeTest.throwCombinedError();
+            checker.throwCombinedError();
         });
         done();
     });
 
     it("can restrict to only 'any' error matching", (done) => {
 
-        let typeTest = new TypeTest(testFile, {
+        let checker = new FailChecker(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Any
         });
-        _verifyAllowables(typeTest, ['code:5', 'code:8', 'exact:11', 'regex:14']);
+        _verifyAllowables(checker, ['code:5', 'code:8', 'exact:11', 'regex:14']);
         done();
     });
 
     it("can restrict to only 'code' error matching", (done) => {
 
-        let typeTest = new TypeTest(testFile, {
+        let checker = new FailChecker(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Code
         });
-        _verifyAllowables(typeTest, ['any:2', 'exact:11', 'regex:14']);
+        _verifyAllowables(checker, ['any:2', 'exact:11', 'regex:14']);
         done();
     });
 
     it("can restrict to only 'exact' error matching", (done) => {
 
-        let typeTest = new TypeTest(testFile, {
+        let checker = new FailChecker(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Exact
         });
-        _verifyAllowables(typeTest, ['any:2', 'code:5', 'code:8', 'regex:14']);
+        _verifyAllowables(checker, ['any:2', 'code:5', 'code:8', 'regex:14']);
         done();
     });
 
     it("can restrict to only 'regex' error matching", (done) => {
 
-        let typeTest = new TypeTest(testFile, {
+        let checker = new FailChecker(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Regex
         });
-        _verifyAllowables(typeTest, ['any:2', 'code:5', 'code:8', 'exact:11']);
+        _verifyAllowables(checker, ['any:2', 'code:5', 'code:8', 'exact:11']);
         done();
     });
 
     it("can restrict to only 'code' and 'regex' error matching", (done) => {
 
-        let typeTest = new TypeTest(testFile, {
+        let checker = new FailChecker(testFile, {
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Code | ErrorMatching.Regex
         });
-        _verifyAllowables(typeTest, ['any:2', 'exact:11']);
+        _verifyAllowables(checker, ['any:2', 'exact:11']);
         done();
     });
 });
 
-function _verifyAllowables(typeTest: TypeTest, disallowedMatching: string[]) {
+function _verifyAllowables(checker: FailChecker, disallowedMatching: string[]) {
     try {
-        typeTest.run(false);
+        checker.run(false);
         assert(false, 'expected at least one disallowed directive');
     }
     catch (err) {
-        if (!(err instanceof TestSetupError)) {
+        if (!(err instanceof CheckerSetupError)) {
             throw err;
         }
         const disallowed = disallowedMatching.map(spec => {
@@ -96,7 +96,7 @@ function _verifyAllowables(typeTest: TypeTest, disallowedMatching: string[]) {
 
         // Verify that each occurring error was expected.
 
-        const messages = err.message.split(TypeTest.ERROR_DELIM);
+        const messages = err.message.split(FailChecker.ERROR_DELIM);
         for (let i = 0; i < messages.length; ++i) {
             const message = messages[i];
             const matches = message.match(/:(\d+)(:\d+)?$/);

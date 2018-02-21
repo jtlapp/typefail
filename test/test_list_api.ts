@@ -4,8 +4,8 @@ import { assert } from 'chai';
 import { join } from 'path';
 import * as fs from 'fs';
 import {
-    TypeTest,
-    TestSetupError,
+    FailChecker,
+    CheckerSetupError,
     Failure
 } from '../src';
 import { FailureInfo, verifyErrorMessages } from './lib/testlib';
@@ -19,15 +19,15 @@ const subfile1a = 'fixtures/sampledir/subdir/subfile1a.ts';
 const subfile2a = 'fixtures/sampledir/subdir/subfile2a.ts';
 const subfile2b = 'fixtures/sampledir/subdir/subfile2b.ts';
 
-// Run the test recursively on the sampledir and load the expected result data.
+// Run the checker recursively on the sampledir and load the expected result data.
 
-const sampleDirTest = new TypeTest(sampleDirFiles, {
+const sampleDirChecker = new FailChecker(sampleDirFiles, {
     compilerOptions: tsconfigFile,
     rootPath: __dirname
 });
-sampleDirTest.run();
+sampleDirChecker.run();
 
-// created via: ts-node bin/typetest.ts test/fixtures/sampledir/{,**/}*.ts --root=test --json > test/fixtures/sampledir.json
+// created via: ts-node bin/typefail.ts test/fixtures/sampledir/{,**/}*.ts --root=test --json > test/fixtures/sampledir.json
 const sampleDirPojo = require('./fixtures/sampledir.json');
 
 const sampleDirMap = new Map<string, Map<string, any>>();
@@ -46,7 +46,7 @@ describe("handling missing files", () => {
     it("errors when no files are specified", (done) => {
 
         assert.throws(() => {
-            new TypeTest([], {
+            new FailChecker([], {
                 compilerOptions: tsconfigFile
             });
         }, /requires at least one file/);
@@ -55,21 +55,21 @@ describe("handling missing files", () => {
 
     it("errors when specified files are not found", (done) => {
 
-        const typeTest = new TypeTest([
+        const checker = new FailChecker([
             join(__dirname, 'fixtures/notthere1.ts'),
             join(__dirname, 'fixtures/notthere2.ts'),
         ], {
             compilerOptions: tsconfigFile
         });
         try {
-            typeTest.run(false);
+            checker.run(false);
             assert(false, "should have gotten setup errors");
         }
         catch (err) {
-            if (!(err instanceof TestSetupError)) {
+            if (!(err instanceof CheckerSetupError)) {
                 throw err;
             }
-            const errors = err.message.split(TypeTest.ERROR_DELIM);
+            const errors = err.message.split(FailChecker.ERROR_DELIM);
             assert.strictEqual(errors.length, 2);
             assert.match(errors[0], /notthere1.ts' not found/);
             assert.match(errors[1], /notthere2.ts' not found/);
@@ -79,18 +79,18 @@ describe("handling missing files", () => {
 
     it("errors when wildcard specification matches no files", (done) => {
 
-        const typeTest = new TypeTest(join(__dirname, 'fixtures/notthere*.ts'), {
+        const checker = new FailChecker(join(__dirname, 'fixtures/notthere*.ts'), {
             compilerOptions: tsconfigFile
         });
         try {
-            typeTest.run();
+            checker.run();
             assert(false, "should have gotten a setup error");
         }
         catch (err) {
-            if (!(err instanceof TestSetupError)) {
+            if (!(err instanceof CheckerSetupError)) {
                 throw err;
             }
-            assert.match(err.message, /No source files were found to test/);
+            assert.match(err.message, /No source files were found to check/);
         }
         done();
     });
@@ -100,19 +100,19 @@ describe("bailing on setup errors", () => {
 
     it("bails on first detected setup error", (done) => {
 
-        const typeTest = new TypeTest(join(__dirname, 'fixtures/setup_errors.ts'), {
+        const checker = new FailChecker(join(__dirname, 'fixtures/setup_errors.ts'), {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
         try {
-            typeTest.run();
+            checker.run();
             assert(false, "should have gotten a setup error");
         }
         catch (err) {
-            if (!(err instanceof TestSetupError)) {
+            if (!(err instanceof CheckerSetupError)) {
                 throw err;
             }
-            const errors = err.message.split(TypeTest.ERROR_DELIM);
+            const errors = err.message.split(FailChecker.ERROR_DELIM);
             assert.strictEqual(errors.length, 1);
             assert.match(errors[0], /string parameter/);
         }
@@ -121,19 +121,19 @@ describe("bailing on setup errors", () => {
 
     it("reports all setup errors without bailing", (done) => {
 
-        const typeTest = new TypeTest(join(__dirname, 'fixtures/setup_errors.ts'), {
+        const checker = new FailChecker(join(__dirname, 'fixtures/setup_errors.ts'), {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
         try {
-            typeTest.run(false);
+            checker.run(false);
             assert(false, "should have gotten setup errors");
         }
         catch (err) {
-            if (!(err instanceof TestSetupError)) {
+            if (!(err instanceof CheckerSetupError)) {
                 throw err;
             }
-            const errors = err.message.split(TypeTest.ERROR_DELIM);
+            const errors = err.message.split(FailChecker.ERROR_DELIM);
             assert.strictEqual(errors.length, 2);
             assert.match(errors[0], /string parameter/);
             assert.match(errors[1], /directive name/);
@@ -150,7 +150,7 @@ describe("listing loaded files", () => {
         for (let file of sampleDirMap.keys()) {
             expectedFiles.push(file);
         }
-        for (let actualFile of sampleDirTest.files()) {
+        for (let actualFile of sampleDirChecker.files()) {
             const foundIndex = expectedFiles.indexOf(actualFile);
             assert.isAtLeast(foundIndex, 0, `unexpected file ${actualFile}`);
             expectedFiles[foundIndex] = '';
@@ -165,25 +165,25 @@ describe("listing loaded files", () => {
     it("lists a specified absolute file path", (done) => {
 
         const absFile1a = join(__dirname, 'fixtures/sampledir/file1a.ts');
-        const typeTest = new TypeTest(absFile1a, {
+        const checker = new FailChecker(absFile1a, {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
-        const filePaths = typeTest.files(absFile1a);
+        checker.run();
+        const filePaths = checker.files(absFile1a);
         assert.deepEqual(filePaths, [absFile1a]);
         done();
     });
 
     it("lists a specified relative file path", (done) => {
 
-        const filePaths = sampleDirTest.files(subfile2a);
+        const filePaths = sampleDirChecker.files(subfile2a);
         assert.deepEqual(filePaths, [subfile2a]);
         done();
     });
 
     it("lists files by wildcard", (done) => {
 
-        let filePaths = sampleDirTest.files('fixtures/sampledir/file1*.ts');
+        let filePaths = sampleDirChecker.files('fixtures/sampledir/file1*.ts');
         assert.strictEqual(filePaths.length, 2);
         if (filePaths[0] !== file1a) {
             filePaths = [ filePaths[1], filePaths[0] ];
@@ -197,89 +197,89 @@ describe("testing loaded files", () => {
 
     it("tests a single file specified as a string", (done) => {
 
-        const typeTest = new TypeTest(join(__dirname, file1a), {
+        const checker = new FailChecker(join(__dirname, file1a), {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
-        typeTest.run();
+        checker.run();
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, file1a);
-        _verifyErrors(typeTest.failures(), expectedErrors, "in single file as string");
+        _verifyErrors(checker.failures(), expectedErrors, "in single file as string");
         done();
     });
 
     it("tests a single file specified as an array", (done) => {
 
-        const typeTest = new TypeTest([join(__dirname, file1b)], {
+        const checker = new FailChecker([join(__dirname, file1b)], {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
-        typeTest.run();
+        checker.run();
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, file1b);
-        _verifyErrors(typeTest.failures(), expectedErrors, "in single file as array");
+        _verifyErrors(checker.failures(), expectedErrors, "in single file as array");
         done();
     });
 
     it("tests multiple individually specified files", (done) => {
 
-        const typeTest = new TypeTest([
+        const checker = new FailChecker([
             join(__dirname, file1a),
             join(__dirname, file1b)
         ], {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
-        typeTest.run();
+        checker.run();
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, file1a);
         _addExpectedErrors(expectedErrors, file1b);
-        _verifyErrors(typeTest.failures(), expectedErrors, "in multiple named files");
+        _verifyErrors(checker.failures(), expectedErrors, "in multiple named files");
         done();
     });
 
     it("tests files specified by wildcard", (done) => {
 
         const wildFilePath = 'fixtures/sampledir/file1*.ts';
-        const typeTest = new TypeTest(join(__dirname, wildFilePath), {
+        const checker = new FailChecker(join(__dirname, wildFilePath), {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
-        typeTest.run();
+        checker.run();
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, file1a);
         _addExpectedErrors(expectedErrors, file1b);
-        _verifyErrors(typeTest.failures(), expectedErrors, "in files by wildcard");
+        _verifyErrors(checker.failures(), expectedErrors, "in files by wildcard");
         done();
     });
 
     it("tests a mix of specified and wildcard files", (done) => {
 
         const wildFilePath = 'fixtures/sampledir/subdir/subfile2*.ts';
-        const typeTest = new TypeTest([
+        const checker = new FailChecker([
             join(__dirname, wildFilePath),
             join(__dirname, file1b)
         ], {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
-        typeTest.run();
+        checker.run();
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, subfile2a);
         _addExpectedErrors(expectedErrors, subfile2b);
         _addExpectedErrors(expectedErrors, file1b);
-        _verifyErrors(typeTest.failures(), expectedErrors, "in file and wildcard");
+        _verifyErrors(checker.failures(), expectedErrors, "in file and wildcard");
         done();
     });
 
     it("tests files specified by recursive wildcard", (done) => {
 
         const wildFilePath = 'fixtures/sampledir/{,**/}*.ts';
-        const typeTest = new TypeTest([join(__dirname, wildFilePath)], {
+        const checker = new FailChecker([join(__dirname, wildFilePath)], {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
-        typeTest.run();
+        checker.run();
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, file1a);
         _addExpectedErrors(expectedErrors, file1b);
@@ -287,7 +287,7 @@ describe("testing loaded files", () => {
         _addExpectedErrors(expectedErrors, subfile1a);
         _addExpectedErrors(expectedErrors, subfile2a);
         _addExpectedErrors(expectedErrors, subfile2b);
-        _verifyErrors(typeTest.failures(), expectedErrors, "in files by recursive wildcard");
+        _verifyErrors(checker.failures(), expectedErrors, "in files by recursive wildcard");
         done();
     });
 });
@@ -298,7 +298,7 @@ describe("selectively verifying files", () => {
 
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, file1a);
-        _verifyErrors(sampleDirTest.failures(file1a), expectedErrors, "in selected file");
+        _verifyErrors(sampleDirChecker.failures(file1a), expectedErrors, "in selected file");
         done();
     });
 
@@ -308,7 +308,7 @@ describe("selectively verifying files", () => {
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, file1a);
         _addExpectedErrors(expectedErrors, file1b);
-        _verifyErrors(sampleDirTest.failures(wildcardFile), expectedErrors,
+        _verifyErrors(sampleDirChecker.failures(wildcardFile), expectedErrors,
                 "in wildcard file selection");
         done();
     });
@@ -316,7 +316,7 @@ describe("selectively verifying files", () => {
     it("errors when the selected file is not present", (done) => {
 
         assert.throws(() => {
-            sampleDirTest.failures("non-existent file").next();
+            sampleDirChecker.failures("non-existent file").next();
         }, /file.*not found/i);
         done();
     });
@@ -332,49 +332,51 @@ describe("enumerating groups", () => {
                 expectedGroups.push(group);
             }
         }
-        _verifyGroups(sampleDirTest.groups(), expectedGroups);
+        _verifyGroups(sampleDirChecker.groups(), expectedGroups);
         done();
     });
 
     it("a single file not specifying groups yields only default group", (done) => {
 
-        const typeTest = new TypeTest(join(__dirname, 'fixtures/groups/no_groups_named.ts'), {
+        const checker = new FailChecker(join(__dirname, 'fixtures/groups/no_groups_named.ts'), {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
+        checker.run();
         const actualGroups = <string[]>[];
-        for (let groupName of typeTest.groups()) {
+        for (let groupName of checker.groups()) {
             actualGroups.push(groupName);
         }
         assert.strictEqual(actualGroups.length, 1);
-        assert.strictEqual(actualGroups[0], TypeTest.DEFAULT_GROUP_NAME);
+        assert.strictEqual(actualGroups[0], FailChecker.DEFAULT_GROUP_NAME);
         done();
     });
 
     it("yields all groups of a single specified file, default group first", (done) => {
 
-        const typeTest = new TypeTest(join(__dirname, 'fixtures/groups/second_group_named.ts'), {
-            compilerOptions: tsconfigFile
-        });
-        typeTest.run();
+        const checker = new FailChecker(
+            join(__dirname, 'fixtures/groups/second_group_named.ts'),
+            { compilerOptions: tsconfigFile }
+        );
+        checker.run();
         const actualGroups = <string[]>[];
-        for (let groupName of typeTest.groups()) {
+        for (let groupName of checker.groups()) {
             actualGroups.push(groupName);
         }
         assert.strictEqual(actualGroups.length, 2);
-        assert.strictEqual(actualGroups[0], TypeTest.DEFAULT_GROUP_NAME);
+        assert.strictEqual(actualGroups[0], FailChecker.DEFAULT_GROUP_NAME);
         assert.strictEqual(actualGroups[1], "Second group");
         done();
     });
 
     it("yields all groups of a single specified file, no default group", (done) => {
 
-        const typeTest = new TypeTest(join(__dirname, 'fixtures/groups/both_groups_named.ts'), {
-            compilerOptions: tsconfigFile
-        });
-        typeTest.run();
+        const checker = new FailChecker(
+            join(__dirname, 'fixtures/groups/both_groups_named.ts'),
+            { compilerOptions: tsconfigFile }
+        );
+        checker.run();
         const actualGroups = <string[]>[];
-        for (let groupName of typeTest.groups()) {
+        for (let groupName of checker.groups()) {
             actualGroups.push(groupName);
         }
         assert.strictEqual(actualGroups.length, 2);
@@ -390,7 +392,7 @@ describe("enumerating groups", () => {
         for (let group of fileData!.keys()) {
             expectedGroups.push(group);
         }
-        _verifyGroups(sampleDirTest.groups(file1a), expectedGroups);
+        _verifyGroups(sampleDirChecker.groups(file1a), expectedGroups);
         done();
     });
 
@@ -406,7 +408,7 @@ describe("enumerating groups", () => {
                 expectedGroups.push(group);
             }
         });
-        _verifyGroups(sampleDirTest.groups(wildcardPath), expectedGroups);
+        _verifyGroups(sampleDirChecker.groups(wildcardPath), expectedGroups);
         done();
     });
 });
@@ -418,12 +420,12 @@ describe("selectively verifying groups", () => {
         let expectedErrors = <string[]>[];
         let groupName = "Uniquely errors unexpected-TS2345 and missing-TS2451";
         _addExpectedErrors(expectedErrors, subfile2a, groupName);
-        _verifyErrors(sampleDirTest.failures(subfile2a, groupName), expectedErrors,
+        _verifyErrors(sampleDirChecker.failures(subfile2a, groupName), expectedErrors,
                 "in file-group verification 1");
         expectedErrors = <string[]>[];
         groupName = "Uniquely errors missing-TS2345 and missing-TS2451";
         _addExpectedErrors(expectedErrors, subfile2a, groupName);
-        _verifyErrors(sampleDirTest.failures(subfile2a, groupName), expectedErrors,
+        _verifyErrors(sampleDirChecker.failures(subfile2a, groupName), expectedErrors,
                 "in file-group verification 2");
         done();
     });
@@ -431,12 +433,12 @@ describe("selectively verifying groups", () => {
     it("verifies default group in file with no code", (done) => {
 
         const filePath = join(__dirname, 'fixtures/groups/default_group_no_code.ts');
-        const typeTest = new TypeTest(filePath, {
+        const checker = new FailChecker(filePath, {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
-        assert(typeTest.failures().next().done); // no failures anywhere
-        const failures = typeTest.failures(filePath, TypeTest.DEFAULT_GROUP_NAME);
+        checker.run();
+        assert(checker.failures().next().done); // no failures anywhere
+        const failures = checker.failures(filePath, FailChecker.DEFAULT_GROUP_NAME);
         assert(failures.next().done);
         done();
     });
@@ -444,15 +446,15 @@ describe("selectively verifying groups", () => {
     it("verifies first group with no code, second with error", (done) => {
 
         const filePath = join(__dirname, 'fixtures/groups/first_group_no_code.ts');
-        const typeTest = new TypeTest(filePath, {
+        const checker = new FailChecker(filePath, {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
+        checker.run();
 
-        let failures = typeTest.failures(filePath, "First group having no code");
+        let failures = checker.failures(filePath, "First group having no code");
         assert(failures.next().done);
 
-        failures = typeTest.failures(filePath, "Second group having failure");
+        failures = checker.failures(filePath, "Second group having failure");
         assert.strictEqual(failures.next().value.code, 2322);
         assert(failures.next().done);
         done();
@@ -461,16 +463,16 @@ describe("selectively verifying groups", () => {
     it("verifies first group with error, last with no code", (done) => {
 
         const filePath = join(__dirname, 'fixtures/groups/last_group_no_code.ts');
-        const typeTest = new TypeTest(filePath, {
+        const checker = new FailChecker(filePath, {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
+        checker.run();
 
-        let failures = typeTest.failures(filePath, "First group having failure");
+        let failures = checker.failures(filePath, "First group having failure");
         assert.strictEqual(failures.next().value.code, 2322);
         assert(failures.next().done);
 
-        failures = typeTest.failures(filePath, "Last group having no code");
+        failures = checker.failures(filePath, "Last group having no code");
         assert(failures.next().done);
         done();
     });
@@ -478,7 +480,7 @@ describe("selectively verifying groups", () => {
     it("errors when the selected group is not present", (done) => {
 
         assert.throws(() => {
-            sampleDirTest.failures(file1a, "non-existent group").next();
+            sampleDirChecker.failures(file1a, "non-existent group").next();
         }, /group.*not found/i);
         done();
     });
@@ -488,14 +490,14 @@ describe("generating json", () => {
 
     it("generates json for a single file", (done) => {
 
-        const typeTest = new TypeTest(join(__dirname, 'fixtures/sampledir/file1a.ts'), {
+        const checker = new FailChecker(join(__dirname, 'fixtures/sampledir/file1a.ts'), {
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
-        typeTest.run();
+        checker.run();
 
         const expectedJson = fs.readFileSync(join(__dirname, 'fixtures/sampledir/file1a.json'));
-        const actualJson = typeTest.json() +"\n";
+        const actualJson = checker.json() +"\n";
         assert.strictEqual(actualJson, expectedJson.toString(), "single file json");
         done();
     });
@@ -503,7 +505,7 @@ describe("generating json", () => {
     it("generates json for multiple files", (done) => {
 
         const expectedJson = fs.readFileSync(join(__dirname, 'fixtures/sampledir.json'));
-        const actualJson = sampleDirTest.json() +"\n";
+        const actualJson = sampleDirChecker.json() +"\n";
         assert.strictEqual(actualJson, expectedJson.toString(), "multi-file json");
         done();
     });
@@ -527,7 +529,7 @@ function _addExpectedErrors(expectedErrors: string[], filePath: string, groupNam
 function _addExpectedGroupErrors(expectedErrors: string[], groupData: { failures: FailureInfo[] }) {
     groupData.failures.forEach((failure: FailureInfo) => {
 
-        expectedErrors.push(TypeTest.toErrorString(
+        expectedErrors.push(FailChecker.toErrorString(
             failure.type,
             failure.at,
             failure.code,

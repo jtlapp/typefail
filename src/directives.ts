@@ -2,9 +2,9 @@
 import * as ts from 'typescript';
 import * as tsutil from './tsutil';
 import { Failure, RootedFailure } from './failure';
-import { TestSetupError } from './errors';
+import { CheckerSetupError } from './errors';
 
-const DIRECTIVE_PREFIX = 'typetest';
+const DIRECTIVE_PREFIX = 'typefail';
 const DIRECTIVE_NAME_GROUP = 'group';
 const DIRECTIVE_NAME_EXPECT_ERROR = 'error';
 
@@ -47,17 +47,17 @@ export abstract class Directive {
         public targetLineNum: number
     ) { }
 
-    validate(constraints: DirectiveConstraints): TestSetupError | null {
+    validate(constraints: DirectiveConstraints): CheckerSetupError | null {
         return null;
     }
 
     error(message: string, charNum?: number) {
-        return new TestSetupError(`'${Directive.toDirective(this.type)}' directive ${message} `+
+        return new CheckerSetupError(`'${Directive.toDirective(this.type)}' directive ${message} `+
                 `at ${tsutil.toFileLocation(this.fileName, this.directiveLineNum, charNum)}`);
     }
 
     // Generically parse directive parameters, allowing for easy expansion later.
-    // Returns null when the provided comment line is not a TypeTest directive.
+    // Returns null when the provided comment line is not a TYPEFAIL directive.
 
     static parse(
         rootRegex: RegExp | null,
@@ -66,9 +66,9 @@ export abstract class Directive {
         node: ts.Node,
         nodeText: string,
         commentInfo: tsutil.CommentInfo
-    ): Directive | TestSetupError | null {
+    ): Directive | CheckerSetupError | null {
         
-        // Determine whether this comment is an attempt at a typetest directive.
+        // Determine whether this comment is an attempt at a typefail directive.
 
         const commentText = nodeText.substring(commentInfo.startOfLine, commentInfo.endOfComment);
         let matches = commentText.match(REGEX_SLASHSLASH_SYNTAX);
@@ -233,7 +233,7 @@ export abstract class Directive {
             }
         }
         catch (err) {
-            if (err instanceof TestSetupError) {
+            if (err instanceof CheckerSetupError) {
                 return err;
             }
             throw err;
@@ -242,7 +242,7 @@ export abstract class Directive {
     }
 
     static error(message: string, fileName: string, lineNum: number, charNum?: number) {
-        return new TestSetupError(`${message} at `+
+        return new CheckerSetupError(`${message} at `+
                 tsutil.toFileLocation(fileName, lineNum, charNum));
     }
 

@@ -1,4 +1,4 @@
-# typetest
+# typefail
 
 Test for expected compile-time errors in Typescript
 
@@ -12,12 +12,12 @@ This module was originally inspired by the module [`typings-tester`](https://git
 
 ## Usage
 
-TBD
+// UNDER CONSTRUCTION
 
 ## CLI
 
-TBD
+// UNDER CONSTRUCTION
 
 ## API
 
-TBD
+// UNDER CONSTRUCTION

@@ -1,6 +1,6 @@
 
-export { TypeTest } from './TypeTest';
+export { FailChecker } from './FailChecker';
 export { ErrorMatching } from './directives';
 export { Failure } from './failure';
 export { FailureType, FileLocation } from './tsutil';
-export { TypeTestError, TestSetupError, TestFailureError } from './errors';
+export { CheckerError, CheckerSetupError, CheckerFailureError } from './errors';

@@ -6,51 +6,51 @@ import { DirectiveError } from '../lib/testlib';
 export const errors: DirectiveError[] = [];
 let line = 7;
 
-/* typetest:xyz */
+/* typefail:xyz */
 errors.push({ excerpt: "directive name", lineNum: (line += 2) });
-// typetest:xyz
+// typefail:xyz
 errors.push({ excerpt: "directive name", lineNum: (line += 2) });
-/* typetest:xyz "abc" */
+/* typefail:xyz "abc" */
 errors.push({ excerpt: "directive name", lineNum: (line += 2) });
-// typetest:xyz "abc"
+// typefail:xyz "abc"
 errors.push({ excerpt: "directive name", lineNum: (line += 2) });
-/* typetest:group 123 */
+/* typefail:group 123 */
 errors.push({ excerpt: "group name", lineNum: (line += 2), charNum: 19 });
-// typetest:group 123
+// typefail:group 123
 errors.push({ excerpt: "group name", lineNum: (line += 2), charNum: 19 });
-/* typetest:group /abc/ */
+/* typefail:group /abc/ */
 errors.push({ excerpt: "group name", lineNum: (line += 2), charNum: 19 });
-// typetest:group /abc/
+// typefail:group /abc/
 errors.push({ excerpt: "group name", lineNum: (line += 2), charNum: 19 });
-/* typetest:group "abc", "def" */
+/* typefail:group "abc", "def" */
 errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 26 });
-// typetest:group "abc", "def"
+// typefail:group "abc", "def"
 errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 26 });
-/* typetest:group "abc", 123 */
+/* typefail:group "abc", 123 */
 errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 26 });
-// typetest:group "abc", 123
+// typefail:group "abc", 123
 errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 26 });
-/* typetest:group 123, "abc" */
+/* typefail:group 123, "abc" */
 errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 24 });
-// typetest:group 123, "abc"
+// typefail:group 123, "abc"
 errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 24 });
-/* typetest:error "abc", "def" */
+/* typefail:error "abc", "def" */
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
-// typetest:error "abc", "def"
+// typefail:error "abc", "def"
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
-/* typetest:error /abc/, /def/ */
+/* typefail:error /abc/, /def/ */
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
-// typetest:error /abc/, /def/
+// typefail:error /abc/, /def/
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
-/* typetest:error 123, "def" */
+/* typefail:error 123, "def" */
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 24 });
-// typetest:error 123, "def"
+// typefail:error 123, "def"
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 24 });
-/* typetest:error 123, /def/ */
+/* typefail:error 123, /def/ */
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 24 });
-// typetest:error 123, /def/
+// typefail:error 123, /def/
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 24 });
-/* typetest:error "abc", 123 */
+/* typefail:error "abc", 123 */
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
-// typetest:error "abc", 123
+// typefail:error "abc", 123
 errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });

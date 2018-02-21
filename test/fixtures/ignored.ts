@@ -1,29 +1,29 @@
 
 // Not recognized as directives; ignored.
 
-/* typetest */
-// typetest
-/** typetest:group "'Ignored" */
-/// typetest:group "'Ignored"
-/* -typetest:group "'Ignored" */
-// -typetest:group "'Ignored"
-/** typetest:error "'Ignored" */
-/// typetest:error "'Ignored"
-/* -typetest:error "'Ignored" */
-// -typetest:error "'Ignored"
-// /* typetest:error "Error" */
-/* // typetest:error "Error" */
-/* /* typetest:error "Error" */
+/* typefail */
+// typefail
+/** typefail:group "'Ignored" */
+/// typefail:group "'Ignored"
+/* -typefail:group "'Ignored" */
+// -typefail:group "'Ignored"
+/** typefail:error "'Ignored" */
+/// typefail:error "'Ignored"
+/* -typefail:error "'Ignored" */
+// -typefail:error "'Ignored"
+// /* typefail:error "Error" */
+/* // typefail:error "Error" */
+/* /* typefail:error "Error" */
 /*
-typetest:error "Error" */
+typefail:error "Error" */
 /*
-typetest:error "Error"
+typefail:error "Error"
 */
 /*
-// typetest:error "Error"
+// typefail:error "Error"
 */
 /*
-/* typetest:error "Error" */
+/* typefail:error "Error" */
 /**
- * typetest:error "Error"
+ * typefail:error "Error"
  * */

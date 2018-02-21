@@ -4,7 +4,7 @@ import { assert } from 'chai';
 import * as fs from 'fs';
 import { join } from 'path';
 import * as ts from 'typescript';
-import { TypeTest, Failure, FailureType } from '../src';
+import { FailChecker, Failure, FailureType } from '../src';
 
 const TEST_FILENAME = join(__dirname, 'fixtures/ts_errors.ts');
 const expectedErrorLines = getExpectedErrorLines(TEST_FILENAME);
@@ -34,30 +34,30 @@ describe("compiler configuration", () => {
             target: ts.ScriptTarget.ES2016
         };
 
-        let typeTest = new TypeTest(TEST_FILENAME, {
+        let checker = new FailChecker(TEST_FILENAME, {
             compilerOptions: strictCompilerOptions
         });
-        verifyFailures(typeTest, true);
+        verifyFailures(checker, true);
 
-        typeTest = new TypeTest(TEST_FILENAME, {
+        checker = new FailChecker(TEST_FILENAME, {
             compilerOptions: laxCompilerOptions
         });
-        verifyFailures(typeTest, false);
+        verifyFailures(checker, false);
 
         done();
     });
 
     it("uses named tsconfig.json file", (done) => {
 
-        let typeTest = new TypeTest(TEST_FILENAME, {
+        let checker = new FailChecker(TEST_FILENAME, {
             compilerOptions: join(__dirname, 'fixtures/tsconfig.json')
         });
-        verifyFailures(typeTest, true);
+        verifyFailures(checker, true);
 
-        typeTest = new TypeTest(TEST_FILENAME, {
+        checker = new FailChecker(TEST_FILENAME, {
             compilerOptions: join(__dirname, 'fixtures/tsconfig_lax.json')
         });
-        verifyFailures(typeTest, false);
+        verifyFailures(checker, false);
 
         done();
     });
@@ -65,7 +65,7 @@ describe("compiler configuration", () => {
     it("errors on invalid tsconfig.json file", (done) => {
 
         assert.throws(() => {
-            new TypeTest(TEST_FILENAME, {
+            new FailChecker(TEST_FILENAME, {
                 compilerOptions: join(__dirname, 'fixtures/tsconfig_invalid.json')
             });
         }, /module/);
@@ -75,7 +75,7 @@ describe("compiler configuration", () => {
     it("errors when named tsconfig.json file not found", (done) => {
 
         assert.throws(() => {
-            new TypeTest(TEST_FILENAME, {
+            new FailChecker(TEST_FILENAME, {
                 compilerOptions: join(__dirname, 'fixtures/tsconfig_notthere.json')
             });
         }, /does not exist/);
@@ -87,39 +87,39 @@ describe("root path configuration", () => {
 
     it("report absolute paths in errors when there is no root path", (done) => {
 
-        const absTestFile = join(__dirname, 'fixtures/missing_unexpected.ts');
-        const typeTest = new TypeTest(absTestFile, {
+        const absFile = join(__dirname, 'fixtures/missing_unexpected.ts');
+        const checker = new FailChecker(absFile, {
             compilerOptions: join(__dirname, 'fixtures/tsconfig.json')
         });
-        typeTest.run();
+        checker.run();
         const failures = <string[]>[];
-        for (let failure of typeTest.failures()) {
+        for (let failure of checker.failures()) {
             failures.push(failure.toErrorString());
         }
         assert.strictEqual(failures.length, 2);
-        assert.include(failures[0], absTestFile);
-        assert.include(failures[1], absTestFile);
+        assert.include(failures[0], absFile);
+        assert.include(failures[1], absFile);
         done();
     });
 
     it("reports relative paths in errors when there is a root path", (done) => {
 
-        const relTestFile = 'fixtures/missing_unexpected.ts';
-        const absTestFile = join(__dirname, relTestFile);
-        const typeTest = new TypeTest(absTestFile, {
+        const relFile = 'fixtures/missing_unexpected.ts';
+        const absFile = join(__dirname, relFile);
+        const checker = new FailChecker(absFile, {
             compilerOptions: join(__dirname, 'fixtures/tsconfig.json'),
             rootPath: __dirname
         });
-        typeTest.run();
+        checker.run();
         const failures = <string[]>[];
-        for (let failure of typeTest.failures()) {
+        for (let failure of checker.failures()) {
             failures.push(failure.toErrorString());
         }
         assert.strictEqual(failures.length, 2);
-        assert.include(failures[0], relTestFile);
-        assert.notInclude(failures[0], absTestFile);
-        assert.include(failures[1], relTestFile);
-        assert.notInclude(failures[1], absTestFile);
+        assert.include(failures[0], relFile);
+        assert.notInclude(failures[0], absFile);
+        assert.include(failures[1], relFile);
+        assert.notInclude(failures[1], absFile);
         done();
     });
 });
@@ -141,13 +141,13 @@ function getExpectedErrorLines(filename: string) {
     return errorLines;
 }
 
-function verifyFailures(typeTest: TypeTest, strict: boolean) {
+function verifyFailures(checker: FailChecker, strict: boolean) {
 
     // Collect the failures.
 
-    typeTest.run();
+    checker.run();
     const failures: Failure[] = [];
-    for (let failure of typeTest.failures()) {
+    for (let failure of checker.failures()) {
         failures.push(failure);
     }
 
@@ -209,7 +209,7 @@ function validateFailure(failure: Failure) {
 
 
 function toErrorStringFromLine(errorLine: ErrorLine) {
-    return TypeTest.toErrorString(
+    return FailChecker.toErrorString(
         FailureType.MissingError,
         {
             fileName: TEST_FILENAME,

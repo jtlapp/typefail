@@ -2,7 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import * as path from 'path';
-import { TypeTest, FailureType } from '../src';
+import { FailChecker, FailureType } from '../src';
 import { FailureInfo, verifyErrorMessages } from './lib/testlib';
 
 const testFile = path.join(__dirname, 'fixtures/mock_test.ts');
@@ -10,44 +10,44 @@ const tsconfigFile = path.join(__dirname, 'fixtures/tsconfig.json');
 
 describe("mockup test", () => {
 
-    const typeTest = new TypeTest(testFile, {
+    const checker = new FailChecker(testFile, {
         compilerOptions: tsconfigFile,
         rootPath: __dirname
     });
-    typeTest.run();
+    checker.run();
 
     const group1 = "Passes when there are no expected errors";
     it(group1, (done) => {
 
-        _verifyFailures(typeTest, group1, []);
+        _verifyFailures(checker, group1, []);
         done();
     });
 
     const group2 = "Accepts all same-line errors by default";
     it(group2, (done) => {
 
-        _verifyFailures(typeTest, group2, []);
+        _verifyFailures(checker, group2, []);
         done();
     });
 
     const group3 = "Accepts a single expected error";
     it(group3, (done) => {
 
-        _verifyFailures(typeTest, group3, []);
+        _verifyFailures(checker, group3, []);
         done();
     });
 
     const group4 = "Accepts multiple same-line errors upon matching one";
     it(group4, (done) => {
 
-        _verifyFailures(typeTest, group4, []);
+        _verifyFailures(checker, group4, []);
         done();
     });
 
     const group5 = "Accepts multiple expected same line errors";
     it(group5, (done) => {
 
-        _verifyFailures(typeTest, group5, []);
+        _verifyFailures(checker, group5, []);
         done();
     });
 
@@ -88,7 +88,7 @@ describe("mockup test", () => {
                 "code": 2540
             }
         ];
-        _verifyFailures(typeTest, group6, failures);
+        _verifyFailures(checker, group6, failures);
         done();
     });
 
@@ -177,7 +177,7 @@ describe("mockup test", () => {
                 "message": "'q' is declared but its value is never read."
             }
         ];
-        _verifyFailures(typeTest, group7, failures);
+        _verifyFailures(checker, group7, failures);
         done();
     });
 
@@ -220,14 +220,14 @@ describe("mockup test", () => {
                 "code": 2363
             }
         ];
-        _verifyFailures(typeTest, group8, failures);
+        _verifyFailures(checker, group8, failures);
         done();
     });
 
     const group9 = "Checks each of differing directive syntaxes";
     it(group9, (done) => {
 
-        _verifyFailures(typeTest, group9, []);
+        _verifyFailures(checker, group9, []);
         done();
     });
 
@@ -264,7 +264,7 @@ describe("mockup test", () => {
                 "message": "Cannot redeclare block-scoped variable 'z2'."
             }
         ];
-        _verifyFailures(typeTest, group10, failures);
+        _verifyFailures(checker, group10, failures);
         done();
     });
 });
@@ -273,11 +273,11 @@ describe("edge cases", () => {
 
     it("handles end-of-file after group declaration", (done) => {
 
-        const typeTest = new TypeTest(path.join(__dirname, 'fixtures/eof_after_group.ts'), {
+        const checker = new FailChecker(path.join(__dirname, 'fixtures/eof_after_group.ts'), {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
-        const groups = typeTest.groups();
+        checker.run();
+        const groups = checker.groups();
         assert.strictEqual(groups.next().value, "Nothing follows this group");
         assert(groups.next().done);
         done();
@@ -285,11 +285,11 @@ describe("edge cases", () => {
 
     it("handles end-of-file after error declaration", (done) => {
 
-        const typeTest = new TypeTest(path.join(__dirname, 'fixtures/eof_after_error.ts'), {
+        const checker = new FailChecker(path.join(__dirname, 'fixtures/eof_after_error.ts'), {
             compilerOptions: tsconfigFile
         });
-        typeTest.run();
-        const failures = typeTest.failures();
+        checker.run();
+        const failures = checker.failures();
         assert.strictEqual(failures.next().value.type, FailureType.MissingError);
         assert(failures.next().done);
         done();
@@ -298,56 +298,64 @@ describe("edge cases", () => {
 
 // TBD: unexpected error text should be treated as substring searches
 
-function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures: FailureInfo[]) {
-
+function _verifyFailures(
+    checker: FailChecker,
+    groupName: string,
+    expectedFailures: FailureInfo[]
+) {
     // Convert expected failures to expected error strings.
 
     const expectedErrors = expectedFailures.map(expected => {
 
-        return TypeTest.toErrorString(expected.type, expected.at, expected.code, expected.message);
+        return FailChecker.toErrorString(
+            expected.type,
+            expected.at,
+            expected.code,
+            expected.message
+        );
     });
 
-    // Verify typeTest.failures() behavior.
+    // Verify checker.failures() behavior.
 
     const actualErrors = <string[]>[];
-    for (let failure of typeTest.failures(testFile, groupName)) {
+    for (let failure of checker.failures(testFile, groupName)) {
         actualErrors.push(failure.toErrorString());
     }
     verifyErrorMessages(actualErrors, expectedErrors, 'in failures()');
 
-    // Verify typeTest.throwCombinedError() behavior.
+    // Verify checker.throwCombinedError() behavior.
 
     if (expectedErrors.length === 0) {
         assert.doesNotThrow(() => {
 
-            typeTest.throwCombinedError(testFile, groupName);
+            checker.throwCombinedError(testFile, groupName);
         });
     }
     else {
         try {
-            typeTest.throwCombinedError(testFile, groupName);
+            checker.throwCombinedError(testFile, groupName);
             assert(false, 'expected errors not thrown in throwCombinedError()');
         }
         catch (err) {
             verifyErrorMessages(
-                err.message.split(TypeTest.ERROR_DELIM),
+                err.message.split(FailChecker.ERROR_DELIM),
                 expectedErrors,
                 'in throwCombinedError()'
             );
         }
     }
 
-    // Verify typeTest.throwFirstError() behavior.
+    // Verify checker.throwFirstError() behavior.
 
     if (expectedErrors.length === 0) {
         assert.doesNotThrow(() => {
 
-            typeTest.throwFirstError(testFile, groupName);
+            checker.throwFirstError(testFile, groupName);
         });
     }
     else {
         try {
-            typeTest.throwFirstError(testFile, groupName);
+            checker.throwFirstError(testFile, groupName);
             assert(false, 'expected error not thrown in throwFirstError()');
         }
         catch (err) {

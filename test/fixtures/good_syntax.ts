@@ -1,96 +1,96 @@
 
 // Good directive syntax.
 
-/*typetest:group "Group 1"*/  
+/*typefail:group "Group 1"*/  
 let g = 0; // initial code must come after first group directive for this test
 ++g;
-//typetest:group "Group 2"  
+//typefail:group "Group 2"  
 ++g;
-/* typetest:group "Group 3" */  
+/* typefail:group "Group 3" */  
 ++g;
-// typetest:group "Group 4"  
+// typefail:group "Group 4"  
 ++g;
-/*  typetest:group  "Group 5"  */
+/*  typefail:group  "Group 5"  */
 ++g;
-//  typetest:group  "Group 6"
+//  typefail:group  "Group 6"
 ++g;
-/* typetest:group "Group '7'" */
+/* typefail:group "Group '7'" */
 ++g;
-// typetest:group "Group '8'"
+// typefail:group "Group '8'"
 ++g;
-/* typetest:group "Group \"9\"" */
+/* typefail:group "Group \"9\"" */
 ++g;
-// typetest:group "Group \"10\""
+// typefail:group "Group \"10\""
 ++g;
-/* typetest:group 'Group 11' */
+/* typefail:group 'Group 11' */
 ++g;
-// typetest:group 'Group 12'
+// typefail:group 'Group 12'
 ++g;
-/* typetest:group 'Group "13"' */
+/* typefail:group 'Group "13"' */
 ++g;
-// typetest:group 'Group "14"'
+// typefail:group 'Group "14"'
 ++g;
-/* typetest:group 'Group \'15\'' */
+/* typefail:group 'Group \'15\'' */
 ++g;
-// typetest:group 'Group \'16\''
+// typefail:group 'Group \'16\''
 ++g;
-/* typetest:group "Group 17" ********/
+/* typefail:group "Group 17" ********/
 ++g;
 
-/*typetest:error*/
+/*typefail:error*/
 let f = 0;
 ++f;
-//typetest:error
+//typefail:error
 ++f;
-/* typetest:error */
+/* typefail:error */
 ++f;
-// typetest:error
+// typefail:error
 ++f;
-/*   typetest:error   */  
+/*   typefail:error   */  
 ++f;
-//   typetest:error  
+//   typefail:error  
 ++f;
-/* typetest:error "Something isn't \"working\"" */
+/* typefail:error "Something isn't \"working\"" */
 ++f;
-// typetest:error "Something isn't \"working\""
+// typefail:error "Something isn't \"working\""
 ++f;
-/* typetest:error 'Something isn\'t "working"' */
+/* typefail:error 'Something isn\'t "working"' */
 ++f;
-// typetest:error 'Something isn\'t "working"'
+// typefail:error 'Something isn\'t "working"'
 ++f;
-/* typetest:error /this should work/ */
+/* typefail:error /this should work/ */
 ++f;
-// typetest:error /this should work/
+// typefail:error /this should work/
 ++f;
-/* typetest:error /good/imu */
+/* typefail:error /good/imu */
 ++f;
-// typetest:error /good/imu
+// typefail:error /good/imu
 ++f;
-/* typetest:error /\[also\/good/ */
+/* typefail:error /\[also\/good/ */
 ++f;
-// typetest:error /\[also\/good/
+// typefail:error /\[also\/good/
 ++f;
-/* typetest:error /[abc\]def]xyz/ */
+/* typefail:error /[abc\]def]xyz/ */
 ++f;
-// typetest:error /[abc\]def]xyz/
+// typefail:error /[abc\]def]xyz/
 ++f;
-/* typetest:error /abc[^def]/ */
+/* typefail:error /abc[^def]/ */
 ++f;
-// typetest:error /abc[^def]/
+// typefail:error /abc[^def]/
 ++f;
-/* typetest:error 123 */
+/* typefail:error 123 */
 ++f;
-// typetest:error 123
+// typefail:error 123
 ++f;
-/* typetest:error 123, 456, 789 */
+/* typefail:error 123, 456, 789 */
 f += 3;
-// typetest:error 123, 456, 789
+// typefail:error 123, 456, 789
 f += 3;
-/* typetest:error 123 ,456  ,  789 */
+/* typefail:error 123 ,456  ,  789 */
 f += 3;
-// typetest:error 123 ,456  ,  789
+// typefail:error 123 ,456  ,  789
 f += 3;
-/* typetest:error "Error description" ************/
+/* typefail:error "Error description" ************/
 ++f;
 
 export const counts = {

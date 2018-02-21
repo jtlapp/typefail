@@ -15,15 +15,14 @@ import {
     ErrorMatching
 } from './directives';
 import { Failure, RootedFailure } from './failure';
-import { TestSetupError, TestFailureError } from './errors';
+import { CheckerSetupError, CheckerFailureError } from './errors';
 
 // TBD: look at adding test labels for any node -- expecting errors or not
 // TBD: default load tsconfig.json, searching up dir tree (command line tool)
 // TBD: space-separated params should characterize the same error
-// TBD: maybe change 'error' to 'errors'
 // TBD: look at simplifying code by indexing on root-relative filenames
 
-export interface TypeTestOptions {
+export interface CheckerOptions {
     compilerOptions: string | ts.CompilerOptions,
     rootPath?: string,
     allowedErrorMatching?: ErrorMatching // bit flags
@@ -52,7 +51,7 @@ class FailureCandidate {
     }
 }
 
-export class TypeTest implements DirectiveConstraints {
+export class FailChecker implements DirectiveConstraints {
 
     static readonly DEFAULT_GROUP_NAME = 'Default Group'; // first group when unspecified
     static readonly ERROR_DELIM = "\n"; // delimiting error messages in combined errors
@@ -63,7 +62,7 @@ export class TypeTest implements DirectiveConstraints {
     protected rootRegex: RegExp | null = null;
     protected expectedFileNames: string[] = [];
     protected absoluteFileNames: string[] = [];
-    protected options: TypeTestOptions;
+    protected options: CheckerOptions;
     protected compilerOptions: ts.CompilerOptions;
     protected program: ts.Program | undefined; // undefined before run()
     protected directives: Map<string, Directive[]>; // source file => directives
@@ -71,7 +70,7 @@ export class TypeTest implements DirectiveConstraints {
     protected failureCandidates: Map<string, FailureCandidate[]>; // source file => source errors
     protected failureIndex: Map<string, Map<string, Failure[]>>; // file => (group name => failures)
 
-    constructor(filePaths: string | string[], options: TypeTestOptions) {
+    constructor(filePaths: string | string[], options: CheckerOptions) {
 
         if (typeof filePaths === 'string') {
             filePaths = [ filePaths ];
@@ -132,21 +131,21 @@ export class TypeTest implements DirectiveConstraints {
             }
         });
         if (this.setupErrorMessages.length === 0 && this.absoluteFileNames.length === 0) {
-            this.setupErrorMessages.push(`No source files were found to test`);
+            this.setupErrorMessages.push(`No source files were found to check`);
         }
 
         // Parse the source files and load the errors.
 
         this._loadErrors(bailOnFirstError);
 
-        // Once parsed, typetest directives can be extracted from the files.
+        // Once parsed, typefail directives can be extracted from the files.
 
         this._loadDirectives(bailOnFirstError);
 
         // If we have errors and didn't bail, we must be combining error messages.
 
         if (this.setupErrorMessages.length > 0) {
-            throw new TestSetupError(this.setupErrorMessages.join(TypeTest.ERROR_DELIM));
+            throw new CheckerSetupError(this.setupErrorMessages.join(FailChecker.ERROR_DELIM));
         }
     }
     
@@ -180,7 +179,7 @@ export class TypeTest implements DirectiveConstraints {
             }
         }
         else {
-            this._getProgram(); // make sure test has been run
+            this._getProgram(); // make sure checker has been run
             filePath = this._toAbsoluteFile(filePath);
             const fileIndex = this._getFileIndex(filePath);
             if (fileIndex === undefined) {
@@ -246,15 +245,15 @@ export class TypeTest implements DirectiveConstraints {
             failures.push(failure);
         }
         if (failures.length > 0) {
-            throw new TestFailureError(failures.map(failure => {
+            throw new CheckerFailureError(failures.map(failure => {
                 return failure.toErrorString();
-            }).join(TypeTest.ERROR_DELIM));
+            }).join(FailChecker.ERROR_DELIM));
         }
     }
 
     throwFirstError(filePath = '', groupName?: string) {
         for (let failure of this.failures(filePath, groupName)) {
-            throw new TestFailureError(failure.toErrorString(), failure.code);
+            throw new CheckerFailureError(failure.toErrorString(), failure.code);
         }
     }
 
@@ -323,7 +322,7 @@ export class TypeTest implements DirectiveConstraints {
         let fileDirectives = this.directives.get(fileName);
         let groupExpectedErrors: ExpectedError[] = [];
         let groupCandidateIndex = 0;
-        let groupName = TypeTest.DEFAULT_GROUP_NAME;
+        let groupName = FailChecker.DEFAULT_GROUP_NAME;
         let groupStartLineNum = 1;
         let firstGroup = true;
 
@@ -375,7 +374,7 @@ export class TypeTest implements DirectiveConstraints {
 
     protected _getProgram() {
         if (this.program === undefined) {
-            throw new Error(`TypeTest has not yet been run`); // fatal error
+            throw new Error(`FailChecker has not yet been run`); // fatal error
         }
         return this.program;
     }
@@ -404,7 +403,7 @@ export class TypeTest implements DirectiveConstraints {
             const code = diagnostic.code;
             const message = ts.flattenDiagnosticMessageText(
                 diagnostic.messageText,
-                TypeTest.ERROR_DELIM
+                FailChecker.ERROR_DELIM
             );
             if (diagnostic.file) {
                 const fileName = diagnostic.file.fileName;
@@ -426,7 +425,7 @@ export class TypeTest implements DirectiveConstraints {
             }
             else {
                 if (bailOnFirstError) {
-                    throw new TestSetupError(message, code);
+                    throw new CheckerSetupError(message, code);
                 }
                 this.setupErrorMessages.push(message);
             }
@@ -454,7 +453,7 @@ export class TypeTest implements DirectiveConstraints {
                 if (result !== null) {
                     if (result instanceof Directive) {
                         const err = result.validate(this);
-                        if (err instanceof TestSetupError) {
+                        if (err instanceof CheckerSetupError) {
                             result = err;
                         }
                         else {
@@ -464,7 +463,7 @@ export class TypeTest implements DirectiveConstraints {
                             }
                         }
                     }
-                    if (result instanceof TestSetupError) {
+                    if (result instanceof CheckerSetupError) {
                         if (bailOnFirstError) {
                             throw result;
                         }

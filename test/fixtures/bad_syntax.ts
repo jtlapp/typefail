@@ -6,153 +6,153 @@ import { DirectiveError } from '../lib/testlib';
 export const errors: DirectiveError[] = [];
 let line = 7;
 
-/* typetest: */
+/* typefail: */
 errors.push({ excerpt: "directive name", lineNum: (line += 2), charNum: 13 });
-// typetest:
+// typefail:
 errors.push({ excerpt: "directive name", lineNum: (line += 2), charNum: 13 });
-/* typetest:group Bad Syntax */
+/* typefail:group Bad Syntax */
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:group Bad Syntax
+// typefail:group Bad Syntax
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error Bad Syntax */
+/* typefail:error Bad Syntax */
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error Bad Syntax
+// typefail:error Bad Syntax
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:group &*!@#$ */
+/* typefail:group &*!@#$ */
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:group &*!@#$
+// typefail:group &*!@#$
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error &*!@#$ */
+/* typefail:error &*!@#$ */
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error &*!@#$
+// typefail:error &*!@#$
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:group "bad' */
+/* typefail:group "bad' */
 errors.push({ excerpt: "string parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:group "bad'
+// typefail:group "bad'
 errors.push({ excerpt: "string parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error "bad' */
+/* typefail:error "bad' */
 errors.push({ excerpt: "string parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error "bad'
+// typefail:error "bad'
 errors.push({ excerpt: "string parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:group 'bad" */
+/* typefail:group 'bad" */
 errors.push({ excerpt: "string parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:group 'bad"
+// typefail:group 'bad"
 errors.push({ excerpt: "string parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error 'bad" */
+/* typefail:error 'bad" */
 errors.push({ excerpt: "string parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error 'bad"
+// typefail:error 'bad"
 errors.push({ excerpt: "string parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:group "good"bad */
+/* typefail:group "good"bad */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-// typetest:group "good"bad
+// typefail:group "good"bad
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-/* typetest:error "good"bad */
+/* typefail:error "good"bad */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-// typetest:error "good"bad
+// typefail:error "good"bad
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-/* typetest:group "good"bad" */
+/* typefail:group "good"bad" */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-// typetest:group "good"bad"
+// typefail:group "good"bad"
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-/* typetest:error "good"bad" */
+/* typefail:error "good"bad" */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-// typetest:error "good"bad"
+// typefail:error "good"bad"
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-/* typetest:group 'good'bad */
+/* typefail:group 'good'bad */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-// typetest:group 'good'bad
+// typefail:group 'good'bad
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-/* typetest:error 'good'bad */
+/* typefail:error 'good'bad */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-// typetest:error 'good'bad
+// typefail:error 'good'bad
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-/* typetest:group 'good'bad' */
+/* typefail:group 'good'bad' */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-// typetest:group 'good'bad'
+// typefail:group 'good'bad'
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-/* typetest:error 'good'bad' */
+/* typefail:error 'good'bad' */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-// typetest:error 'good'bad'
+// typefail:error 'good'bad'
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 25 });
-/* typetest:group 'good', */
+/* typefail:group 'good', */
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 26 });
-// typetest:group 'good',
+// typefail:group 'good',
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 26 });
-/* typetest:error 123, */
+/* typefail:error 123, */
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 23 });
-// typetest:error 123,
+// typefail:error 123,
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 23 });
-/* typetest:group 'good' "bad" */
+/* typefail:group 'good' "bad" */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 26 });
-// typetest:group 'good' "bad"
+// typefail:group 'good' "bad"
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 26 });
-/* typetest:group: */
+/* typefail:group: */
 errors.push({ excerpt: "Invalid directive", lineNum: (line += 2) });
-// typetest:group:
+// typefail:group:
 errors.push({ excerpt: "Invalid directive", lineNum: (line += 2) });
-/* typetest:error: */
+/* typefail:error: */
 errors.push({ excerpt: "Invalid directive", lineNum: (line += 2) });
-// typetest:error:
+// typefail:error:
 errors.push({ excerpt: "Invalid directive", lineNum: (line += 2) });
-/* typetest:error -1 */
+/* typefail:error -1 */
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error -1
+// typefail:error -1
 errors.push({ excerpt: "directive parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error 123 321 */
+/* typefail:error 123 321 */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 23 });
-// typetest:error 123 321
+// typefail:error 123 321
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 23 });
-/* typetest:error 123a */
+/* typefail:error 123a */
 errors.push({ excerpt: "integer parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error 123a
+// typefail:error 123a
 errors.push({ excerpt: "integer parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error / */
+/* typefail:error / */
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error /
+// typefail:error /
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error /bad */
+/* typefail:error /bad */
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error /bad
+// typefail:error /bad
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error /// */
+/* typefail:error /// */
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error ///
+// typefail:error ///
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error /[/ */
+/* typefail:error /[/ */
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error /[/
+// typefail:error /[/
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error /[^/ */
+/* typefail:error /[^/ */
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error /[^/
+// typefail:error /[^/
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error /[abc\]/ */
+/* typefail:error /[abc\]/ */
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error /[abc\]/
+// typefail:error /[abc\]/
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error /[^abc\]/ */
+/* typefail:error /[^abc\]/ */
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-// typetest:error /[^abc\]/
+// typefail:error /[^abc\]/
 errors.push({ excerpt: "regex parameter", lineNum: (line += 2), charNum: 19 });
-/* typetest:error /bad/$ */
+/* typefail:error /bad/$ */
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 24 });
-// typetest:error /bad/$
+// typefail:error /bad/$
 errors.push({ excerpt: "directive syntax", lineNum: (line += 2), charNum: 24 });
-/* typetest:error /bad/Z */
+/* typefail:error /bad/Z */
 errors.push({ excerpt: "regex flags", lineNum: (line += 2), charNum: 19 });
-// typetest:error /bad/Z
+// typefail:error /bad/Z
 errors.push({ excerpt: "regex flags", lineNum: (line += 2), charNum: 19 });
-/* typetest:error /abc/iz */
+/* typefail:error /abc/iz */
 errors.push({ excerpt: "regex flags", lineNum: (line += 2), charNum: 19 });
-// typetest:error /abc/iz
+// typefail:error /abc/iz
 errors.push({ excerpt: "regex flags", lineNum: (line += 2), charNum: 19 });
-/* typetest:group "Group Name" */ //foo
+/* typefail:group "Group Name" */ //foo
 errors.push({ excerpt: "Code cannot follow", lineNum: (line += 2) });
-/* typetest:error "abc" */ //foo
+/* typefail:error "abc" */ //foo
 errors.push({ excerpt: "Code cannot follow", lineNum: (line += 2) });
-/* typetest:group "Group Name"
+/* typefail:group "Group Name"
 */
 errors.push({ excerpt: "must be single line", lineNum: (line += 2) });
-/* typetest:error "abc"
+/* typefail:error "abc"
 */
 errors.push({ excerpt: "must be single line", lineNum: (line += 3) });

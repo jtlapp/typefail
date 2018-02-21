@@ -1,5 +1,5 @@
 
-export abstract class TypeTestError extends Error {
+export abstract class CheckerError extends Error {
     code: number | undefined;
 
     constructor(message: string, code?: number) {
@@ -8,6 +8,6 @@ export abstract class TypeTestError extends Error {
     }
 }
 
-export class TestSetupError extends TypeTestError { }
+export class CheckerSetupError extends CheckerError { }
 
-export class TestFailureError extends TypeTestError { }
+export class CheckerFailureError extends CheckerError { }

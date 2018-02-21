@@ -1,8 +1,8 @@
 
-// typetest:group "First group"
+// typefail:group "First group"
 
 console.log("A");
 
-// typetest:group "Second group"
+// typefail:group "Second group"
 
 console.log("B");
