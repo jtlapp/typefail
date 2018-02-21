@@ -96,7 +96,7 @@ function _verifyAllowables(typeTest: TypeTest, disallowedMatching: string[]) {
 
         // Verify that each occurring error was expected.
 
-        const messages = err.message.split("\n");
+        const messages = err.message.split(TypeTest.ERROR_DELIM);
         for (let i = 0; i < messages.length; ++i) {
             const message = messages[i];
             const matches = message.match(/:(\d+)(:\d+)?$/);

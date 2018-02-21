@@ -4,7 +4,7 @@ import { assert } from 'chai';
 import * as fs from 'fs';
 import { join } from 'path';
 import * as ts from 'typescript';
-import { TypeTest, Failure, FailureType, toErrorString } from '../src';
+import { TypeTest, Failure, FailureType } from '../src';
 
 const TEST_FILENAME = join(__dirname, 'fixtures/ts_errors.ts');
 const expectedErrorLines = getExpectedErrorLines(TEST_FILENAME);
@@ -209,7 +209,7 @@ function validateFailure(failure: Failure) {
 
 
 function toErrorStringFromLine(errorLine: ErrorLine) {
-    return toErrorString(
+    return TypeTest.toErrorString(
         FailureType.MissingError,
         {
             fileName: TEST_FILENAME,

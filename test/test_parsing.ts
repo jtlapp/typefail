@@ -2,7 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
-import { TypeTest, FailureType, TestSetupError, DEFAULT_GROUP_NAME } from '../src';
+import { TypeTest, FailureType, TestSetupError } from '../src';
 import { DirectiveError } from './lib/testlib';
 
 const tsconfigFile = join(__dirname, 'fixtures/tsconfig.json');
@@ -58,7 +58,7 @@ describe("directives", () => {
         typeTest.run();
 
         const groups = typeTest.groups();
-        assert.strictEqual(groups.next().value, DEFAULT_GROUP_NAME);
+        assert.strictEqual(groups.next().value, TypeTest.DEFAULT_GROUP_NAME);
         assert(groups.next().done, "should only be one group");
 
         const failures = typeTest.failures();
@@ -84,7 +84,7 @@ function _verifyErrors(fixtureFile: string) {
         if (!(err instanceof TestSetupError)) {
             throw err;
         }
-        const actualErrors = err.message.split("\n");
+        const actualErrors = err.message.split(TypeTest.ERROR_DELIM);
 
         for (let i = 0; i < expectedErrors.length; ++i) {
             let actual = actualErrors[i];

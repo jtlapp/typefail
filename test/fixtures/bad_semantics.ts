@@ -34,23 +34,23 @@ errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 26 });
 errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 24 });
 // typetest:group 123, "abc"
 errors.push({ excerpt: "one parameter", lineNum: (line += 2), charNum: 24 });
-/* typetest:expect-error "abc", "def" */
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 33 });
-// typetest:expect-error "abc", "def"
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 33 });
-/* typetest:expect-error /abc/, /def/ */
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 33 });
-// typetest:expect-error /abc/, /def/
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 33 });
-/* typetest:expect-error 123, "def" */
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 31 });
-// typetest:expect-error 123, "def"
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 31 });
-/* typetest:expect-error 123, /def/ */
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 31 });
-// typetest:expect-error 123, /def/
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 31 });
-/* typetest:expect-error "abc", 123 */
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 33 });
-// typetest:expect-error "abc", 123
-errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 33 });
+/* typetest:error "abc", "def" */
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
+// typetest:error "abc", "def"
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
+/* typetest:error /abc/, /def/ */
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
+// typetest:error /abc/, /def/
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
+/* typetest:error 123, "def" */
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 24 });
+// typetest:error 123, "def"
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 24 });
+/* typetest:error 123, /def/ */
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 24 });
+// typetest:error 123, /def/
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 24 });
+/* typetest:error "abc", 123 */
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });
+// typetest:error "abc", 123
+errors.push({ excerpt: "invalid parameter", lineNum: (line += 2), charNum: 26 });

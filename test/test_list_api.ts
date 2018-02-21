@@ -6,9 +6,7 @@ import * as fs from 'fs';
 import {
     TypeTest,
     TestSetupError,
-    Failure,
-    toErrorString,
-    DEFAULT_GROUP_NAME
+    Failure
 } from '../src';
 import { FailureInfo, verifyErrorMessages } from './lib/testlib';
 
@@ -71,7 +69,7 @@ describe("handling missing files", () => {
             if (!(err instanceof TestSetupError)) {
                 throw err;
             }
-            const errors = err.message.split("\n");
+            const errors = err.message.split(TypeTest.ERROR_DELIM);
             assert.strictEqual(errors.length, 2);
             assert.match(errors[0], /notthere1.ts' not found/);
             assert.match(errors[1], /notthere2.ts' not found/);
@@ -114,7 +112,7 @@ describe("bailing on setup errors", () => {
             if (!(err instanceof TestSetupError)) {
                 throw err;
             }
-            const errors = err.message.split("\n");
+            const errors = err.message.split(TypeTest.ERROR_DELIM);
             assert.strictEqual(errors.length, 1);
             assert.match(errors[0], /string parameter/);
         }
@@ -135,7 +133,7 @@ describe("bailing on setup errors", () => {
             if (!(err instanceof TestSetupError)) {
                 throw err;
             }
-            const errors = err.message.split("\n");
+            const errors = err.message.split(TypeTest.ERROR_DELIM);
             assert.strictEqual(errors.length, 2);
             assert.match(errors[0], /string parameter/);
             assert.match(errors[1], /directive name/);
@@ -314,6 +312,14 @@ describe("selectively verifying files", () => {
                 "in wildcard file selection");
         done();
     });
+
+    it("errors when the selected file is not present", (done) => {
+
+        assert.throws(() => {
+            sampleDirTest.failures("non-existent file").next();
+        }, /file.*not found/i);
+        done();
+    });
 });
 
 describe("enumerating groups", () => {
@@ -341,7 +347,7 @@ describe("enumerating groups", () => {
             actualGroups.push(groupName);
         }
         assert.strictEqual(actualGroups.length, 1);
-        assert.strictEqual(actualGroups[0], DEFAULT_GROUP_NAME);
+        assert.strictEqual(actualGroups[0], TypeTest.DEFAULT_GROUP_NAME);
         done();
     });
 
@@ -356,7 +362,7 @@ describe("enumerating groups", () => {
             actualGroups.push(groupName);
         }
         assert.strictEqual(actualGroups.length, 2);
-        assert.strictEqual(actualGroups[0], DEFAULT_GROUP_NAME);
+        assert.strictEqual(actualGroups[0], TypeTest.DEFAULT_GROUP_NAME);
         assert.strictEqual(actualGroups[1], "Second group");
         done();
     });
@@ -407,12 +413,73 @@ describe("enumerating groups", () => {
 
 describe("selectively verifying groups", () => {
 
-    it("verifies named group from a named file", (done) => {
+    it("verifies groups by name", (done) => {
 
-        const expectedErrors = <string[]>[];
-        _addExpectedErrors(expectedErrors, subfile2a);
-        _verifyErrors(sampleDirTest.failures(subfile2a), expectedErrors,
-                "in file-group verification");
+        let expectedErrors = <string[]>[];
+        let groupName = "Uniquely errors unexpected-TS2345 and missing-TS2451";
+        _addExpectedErrors(expectedErrors, subfile2a, groupName);
+        _verifyErrors(sampleDirTest.failures(subfile2a, groupName), expectedErrors,
+                "in file-group verification 1");
+        expectedErrors = <string[]>[];
+        groupName = "Uniquely errors missing-TS2345 and missing-TS2451";
+        _addExpectedErrors(expectedErrors, subfile2a, groupName);
+        _verifyErrors(sampleDirTest.failures(subfile2a, groupName), expectedErrors,
+                "in file-group verification 2");
+        done();
+    });
+
+    it("verifies default group in file with no code", (done) => {
+
+        const filePath = join(__dirname, 'fixtures/groups/default_group_no_code.ts');
+        const typeTest = new TypeTest(filePath, {
+            compilerOptions: tsconfigFile
+        });
+        typeTest.run();
+        assert(typeTest.failures().next().done); // no failures anywhere
+        const failures = typeTest.failures(filePath, TypeTest.DEFAULT_GROUP_NAME);
+        assert(failures.next().done);
+        done();
+    });
+
+    it("verifies first group with no code, second with error", (done) => {
+
+        const filePath = join(__dirname, 'fixtures/groups/first_group_no_code.ts');
+        const typeTest = new TypeTest(filePath, {
+            compilerOptions: tsconfigFile
+        });
+        typeTest.run();
+
+        let failures = typeTest.failures(filePath, "First group having no code");
+        assert(failures.next().done);
+
+        failures = typeTest.failures(filePath, "Second group having failure");
+        assert.strictEqual(failures.next().value.code, 2322);
+        assert(failures.next().done);
+        done();
+    });
+
+    it("verifies first group with error, last with no code", (done) => {
+
+        const filePath = join(__dirname, 'fixtures/groups/last_group_no_code.ts');
+        const typeTest = new TypeTest(filePath, {
+            compilerOptions: tsconfigFile
+        });
+        typeTest.run();
+
+        let failures = typeTest.failures(filePath, "First group having failure");
+        assert.strictEqual(failures.next().value.code, 2322);
+        assert(failures.next().done);
+
+        failures = typeTest.failures(filePath, "Last group having no code");
+        assert(failures.next().done);
+        done();
+    });
+
+    it("errors when the selected group is not present", (done) => {
+
+        assert.throws(() => {
+            sampleDirTest.failures(file1a, "non-existent group").next();
+        }, /group.*not found/i);
         done();
     });
 });
@@ -460,7 +527,7 @@ function _addExpectedErrors(expectedErrors: string[], filePath: string, groupNam
 function _addExpectedGroupErrors(expectedErrors: string[], groupData: { failures: FailureInfo[] }) {
     groupData.failures.forEach((failure: FailureInfo) => {
 
-        expectedErrors.push(toErrorString(
+        expectedErrors.push(TypeTest.toErrorString(
             failure.type,
             failure.at,
             failure.code,

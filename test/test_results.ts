@@ -2,7 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import * as path from 'path';
-import { TypeTest, toErrorString } from '../src';
+import { TypeTest, FailureType } from '../src';
 import { FailureInfo, verifyErrorMessages } from './lib/testlib';
 
 const testFile = path.join(__dirname, 'fixtures/mock_test.ts');
@@ -269,6 +269,33 @@ describe("mockup test", () => {
     });
 });
 
+describe("edge cases", () => {
+
+    it("handles end-of-file after group declaration", (done) => {
+
+        const typeTest = new TypeTest(path.join(__dirname, 'fixtures/eof_after_group.ts'), {
+            compilerOptions: tsconfigFile
+        });
+        typeTest.run();
+        const groups = typeTest.groups();
+        assert.strictEqual(groups.next().value, "Nothing follows this group");
+        assert(groups.next().done);
+        done();
+    });
+
+    it("handles end-of-file after error declaration", (done) => {
+
+        const typeTest = new TypeTest(path.join(__dirname, 'fixtures/eof_after_error.ts'), {
+            compilerOptions: tsconfigFile
+        });
+        typeTest.run();
+        const failures = typeTest.failures();
+        assert.strictEqual(failures.next().value.type, FailureType.MissingError);
+        assert(failures.next().done);
+        done();
+    });
+});
+
 // TBD: unexpected error text should be treated as substring searches
 
 function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures: FailureInfo[]) {
@@ -277,7 +304,7 @@ function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures
 
     const expectedErrors = expectedFailures.map(expected => {
 
-        return toErrorString(expected.type, expected.at, expected.code, expected.message);
+        return TypeTest.toErrorString(expected.type, expected.at, expected.code, expected.message);
     });
 
     // Verify typeTest.failures() behavior.
@@ -302,7 +329,11 @@ function _verifyFailures(typeTest: TypeTest, groupName: string, expectedFailures
             assert(false, 'expected errors not thrown in throwCombinedError()');
         }
         catch (err) {
-            verifyErrorMessages(err.message.split("\n"), expectedErrors, 'in throwCombinedError()');
+            verifyErrorMessages(
+                err.message.split(TypeTest.ERROR_DELIM),
+                expectedErrors,
+                'in throwCombinedError()'
+            );
         }
     }
 

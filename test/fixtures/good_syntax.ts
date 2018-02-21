@@ -37,60 +37,60 @@ let g = 0; // initial code must come after first group directive for this test
 /* typetest:group "Group 17" ********/
 ++g;
 
-/*typetest:expect-error*/
+/*typetest:error*/
 let f = 0;
 ++f;
-//typetest:expect-error
+//typetest:error
 ++f;
-/* typetest:expect-error */
+/* typetest:error */
 ++f;
-// typetest:expect-error
+// typetest:error
 ++f;
-/*   typetest:expect-error   */  
+/*   typetest:error   */  
 ++f;
-//   typetest:expect-error  
+//   typetest:error  
 ++f;
-/* typetest:expect-error "Something isn't \"working\"" */
+/* typetest:error "Something isn't \"working\"" */
 ++f;
-// typetest:expect-error "Something isn't \"working\""
+// typetest:error "Something isn't \"working\""
 ++f;
-/* typetest:expect-error 'Something isn\'t "working"' */
+/* typetest:error 'Something isn\'t "working"' */
 ++f;
-// typetest:expect-error 'Something isn\'t "working"'
+// typetest:error 'Something isn\'t "working"'
 ++f;
-/* typetest:expect-error /this should work/ */
+/* typetest:error /this should work/ */
 ++f;
-// typetest:expect-error /this should work/
+// typetest:error /this should work/
 ++f;
-/* typetest:expect-error /good/imu */
+/* typetest:error /good/imu */
 ++f;
-// typetest:expect-error /good/imu
+// typetest:error /good/imu
 ++f;
-/* typetest:expect-error /\[also\/good/ */
+/* typetest:error /\[also\/good/ */
 ++f;
-// typetest:expect-error /\[also\/good/
+// typetest:error /\[also\/good/
 ++f;
-/* typetest:expect-error /[abc\]def]xyz/ */
+/* typetest:error /[abc\]def]xyz/ */
 ++f;
-// typetest:expect-error /[abc\]def]xyz/
+// typetest:error /[abc\]def]xyz/
 ++f;
-/* typetest:expect-error /abc[^def]/ */
+/* typetest:error /abc[^def]/ */
 ++f;
-// typetest:expect-error /abc[^def]/
+// typetest:error /abc[^def]/
 ++f;
-/* typetest:expect-error 123 */
+/* typetest:error 123 */
 ++f;
-// typetest:expect-error 123
+// typetest:error 123
 ++f;
-/* typetest:expect-error 123, 456, 789 */
+/* typetest:error 123, 456, 789 */
 f += 3;
-// typetest:expect-error 123, 456, 789
+// typetest:error 123, 456, 789
 f += 3;
-/* typetest:expect-error 123 ,456  ,  789 */
+/* typetest:error 123 ,456  ,  789 */
 f += 3;
-// typetest:expect-error 123 ,456  ,  789
+// typetest:error 123 ,456  ,  789
 f += 3;
-/* typetest:expect-error "Error description" ************/
+/* typetest:error "Error description" ************/
 ++f;
 
 export const counts = {

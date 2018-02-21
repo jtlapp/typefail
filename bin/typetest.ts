@@ -1,6 +1,6 @@
 
 import * as Minimist from 'minimist';
-import { join } from 'path';
+import * as path from 'path';
 import { TypeTest, TypeTestError } from '../src';
 
 const help = `
@@ -12,10 +12,10 @@ typings -- both type assignments that should not produce errors and type
 assignments that should produce errors. Optionally organizes compile-time
 expected/unexpected errors into groups for group-level testing and reporting.
 
-Syntax: typetest <option>* <filepath>+
+Syntax: typetest <option>* <source-path>+
 
-<filepath> - file name or glob expression for file(s) to test, which may be
-    expressed relative to the current working directory
+<source-path> - file name or glob expression for souce file(s) to test, which
+    may be expressed relative to the current working directory
 <option> - any of the following:
 
 --tsconfig=<file> (-t <file>) - specifies the tscongfig.json file to use
@@ -27,9 +27,9 @@ Syntax: typetest <option>* <filepath>+
 --help (-h) - display this help
 
 When no --tsconfig option is provided, the command uses the tsconfig.json
-found in the current working directory. If no tsconfig.json occurs in the cwd,
-the command uses the tsconfig.json of the nearest containing directory and
-outputs a message indicating the tsconfig.json file in use.
+found in the directory that is common to all of the provided source files. If
+no tsconfig.json occurs in this common directory, the command uses the
+tsconfig.json of the nearest containing directory of this common directory.
 `.trimLeft();
 
 // Process command line, showing help when requested.
@@ -57,25 +57,29 @@ if (args.help) {
     process.exit(0);
 }
 
+const sourceFiles = args._.map(filepath => path.join(process.cwd(), filepath));
+
 // Determine the test configuration.
 
 let tsconfigFile = args.tsconfig;
 if (typeof tsconfigFile === 'string') {
-    tsconfigFile = join(process.cwd(), tsconfigFile);
+    tsconfigFile = path.join(process.cwd(), tsconfigFile);
 }
 else {
-    throw new Error("automatic tsconfig.json locating not yet implemented");
+    tsconfigFile = TypeTest.findNearestConfigFile(sourceFiles);
+    if (tsconfigFile === null) {
+        throw new Error("tsconfig.json not found");
+    }
 }
 
 let rootPath = args.root;
 if (typeof rootPath === 'string') {
-    rootPath = join(process.cwd(), rootPath);
+    rootPath = path.join(process.cwd(), rootPath);
 }
 
 // Load the indicated files for testing.
 
-const files = args._.map(filepath => join(process.cwd(), filepath));
-const typeTest = new TypeTest(files, {
+const typeTest = new TypeTest(sourceFiles, {
     compilerOptions: tsconfigFile,
     rootPath: rootPath
 });
@@ -126,7 +130,7 @@ for (let file of typeTest.files()) {
         }
         catch (err) {
             if (err instanceof TypeTestError) {
-                err.message.split("\n").forEach(message => {
+                err.message.split(TypeTest.ERROR_DELIM).forEach(message => {
 
                     ++fileFailureCount;
                     console.log(`    ${message}`);

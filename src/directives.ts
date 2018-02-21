@@ -6,7 +6,7 @@ import { TestSetupError } from './errors';
 
 const DIRECTIVE_PREFIX = 'typetest';
 const DIRECTIVE_NAME_GROUP = 'group';
-const DIRECTIVE_NAME_EXPECT_ERROR = 'expect-error';
+const DIRECTIVE_NAME_EXPECT_ERROR = 'error';
 
 const COMMA = ",".charCodeAt(0);
 const SPACE = " ".charCodeAt(0);

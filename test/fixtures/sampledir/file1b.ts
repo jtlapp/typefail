@@ -9,5 +9,5 @@ q; // used
 
 /* typetest:group "Uniquely errors missing-TS2345" */
 
-// typetest:expect-error 2345
+// typetest:error 2345
 GoodImport.takesString('abc');

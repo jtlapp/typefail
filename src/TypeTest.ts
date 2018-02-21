@@ -3,6 +3,7 @@ import * as ts from "typescript";
 import * as minimatch from 'minimatch';
 import * as glob from 'glob';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as _ from 'lodash';
 import * as tsutil from './tsutil';
 import {
@@ -19,7 +20,7 @@ import { TestSetupError, TestFailureError } from './errors';
 // TBD: look at adding test labels for any node -- expecting errors or not
 // TBD: default load tsconfig.json, searching up dir tree (command line tool)
 // TBD: space-separated params should characterize the same error
-// TBD: maybe change 'expect-error' to 'errors'
+// TBD: maybe change 'error' to 'errors'
 // TBD: look at simplifying code by indexing on root-relative filenames
 
 export interface TypeTestOptions {
@@ -27,10 +28,6 @@ export interface TypeTestOptions {
     rootPath?: string,
     allowedErrorMatching?: ErrorMatching // bit flags
 }
-
-export const DEFAULT_GROUP_NAME = 'Default Group';
-
-const ERROR_DELIM = "\n"; // delimiting error messages in combined errors
 
 interface FileMark {
     file: ts.SourceFile; // file being scanned
@@ -56,6 +53,9 @@ class FailureCandidate {
 }
 
 export class TypeTest implements DirectiveConstraints {
+
+    static readonly DEFAULT_GROUP_NAME = 'Default Group'; // first group when unspecified
+    static readonly ERROR_DELIM = "\n"; // delimiting error messages in combined errors
 
     allowedErrorMatching: ErrorMatching; // bit flags
 
@@ -146,7 +146,7 @@ export class TypeTest implements DirectiveConstraints {
         // If we have errors and didn't bail, we must be combining error messages.
 
         if (this.setupErrorMessages.length > 0) {
-            throw new TestSetupError(this.setupErrorMessages.join(ERROR_DELIM));
+            throw new TestSetupError(this.setupErrorMessages.join(TypeTest.ERROR_DELIM));
         }
     }
     
@@ -248,7 +248,7 @@ export class TypeTest implements DirectiveConstraints {
         if (failures.length > 0) {
             throw new TestFailureError(failures.map(failure => {
                 return failure.toErrorString();
-            }).join(ERROR_DELIM));
+            }).join(TypeTest.ERROR_DELIM));
         }
     }
 
@@ -258,10 +258,53 @@ export class TypeTest implements DirectiveConstraints {
         }
     }
 
+    static findNearestConfigFile(filePaths: string[]) {
+
+        function _checkForConfigFile(dirPath: string): string | null {
+            const tsconfigFile = path.join(dirPath, 'tsconfig.json');
+            if (fs.existsSync(tsconfigFile)) {
+                return tsconfigFile;
+            }
+            const parentDirPath = path.dirname(dirPath);
+            if (parentDirPath === dirPath) { // should work on both unix and windows
+                return null;
+            }
+            return _checkForConfigFile(parentDirPath);
+        }
+
+        if (filePaths.length === 0) {
+            throw new Error("No files specified");
+        }
+
+        let commonPath = path.dirname(filePaths[0]);
+        for (let i = 1; i < filePaths.length; ++i) {
+            while (!commonPath.endsWith(path.sep) && // should work with windows too
+                    !filePaths[i].startsWith(commonPath + path.sep))
+            {
+                commonPath = path.dirname(commonPath);
+            }
+        }
+
+        return _checkForConfigFile(commonPath);
+    }
+
+    static toErrorString(
+        type: tsutil.FailureType,
+        at: tsutil.FileLocation,
+        code?: number,
+        message?: string
+    ) {
+        return tsutil.toErrorString(type, at, code, message);
+    }
+
     protected _absoluteFiles(filePath: string) {
         filePath = this._toAbsoluteFile(filePath);
         const mm = minimatch.filter(filePath, { matchBase: true });
-        return this._foundFileNames().filter(mm);
+        const absoluteFiles = this._foundFileNames().filter(mm);
+        if (!glob.hasMagic(filePath) && absoluteFiles[0] !== filePath) {
+            throw new Error(`File '${filePath}' not found in text`);
+        }
+        return absoluteFiles;
     }
 
     protected _getFileIndex(fileName: string) {
@@ -272,7 +315,7 @@ export class TypeTest implements DirectiveConstraints {
         if (cachedFileIndex !== undefined) {
             return cachedFileIndex;
         }
-        const fileIndex = new Map<string, Failure[]>();
+        const fileIndex = new Map<string, Failure[]>(); // groups => failures
 
         // Prepare to determine the failures occurring in each group.
 
@@ -280,8 +323,9 @@ export class TypeTest implements DirectiveConstraints {
         let fileDirectives = this.directives.get(fileName);
         let groupExpectedErrors: ExpectedError[] = [];
         let groupCandidateIndex = 0;
-        let groupName = DEFAULT_GROUP_NAME;
+        let groupName = TypeTest.DEFAULT_GROUP_NAME;
         let groupStartLineNum = 1;
+        let firstGroup = true;
 
         // Collect failures for all groups of the file but the last.
 
@@ -290,7 +334,7 @@ export class TypeTest implements DirectiveConstraints {
 
                 if (directive instanceof GroupDirective) {
 
-                    if (!directive.isFirstNode) {
+                    if (!directive.isFirstNode || !firstGroup) {
                         const { failures, nextGroupCandidateIndex } = this._getGroupFailures(
                             groupExpectedErrors,
                             fileFailureCandidates,
@@ -304,6 +348,7 @@ export class TypeTest implements DirectiveConstraints {
                     }
                     groupStartLineNum = directive.targetLineNum;
                     groupName = directive.groupName;
+                    firstGroup = false;
                 }
                 else if (directive instanceof ExpectErrorDirective) {
                     directive.addExpectedErrors(groupExpectedErrors);
@@ -357,7 +402,10 @@ export class TypeTest implements DirectiveConstraints {
 
         diagnostics.forEach(diagnostic => {
             const code = diagnostic.code;
-            const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, ERROR_DELIM);
+            const message = ts.flattenDiagnosticMessageText(
+                diagnostic.messageText,
+                TypeTest.ERROR_DELIM
+            );
             if (diagnostic.file) {
                 const fileName = diagnostic.file.fileName;
                 const { line, character } =

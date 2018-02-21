@@ -1,7 +1,7 @@
 {
   "name": "typetest",
-  "version": "0.1.0",
-  "description": "Assert expected compile-time errors within Typescript source code",
+  "version": "0.2.0",
+  "description": "Test for expected compile-time errors in Typescript",
   "main": "index.js",
   "repository": "https://github.com/jtlapp/typetest.git",
   "author": "Joseph T. Lapp <arachnojoe@gmail.com>",

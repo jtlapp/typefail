@@ -1,0 +1,1 @@
+// typetest:error "Nothing follows this error declaration"
