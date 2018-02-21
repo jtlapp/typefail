@@ -1,6 +1,6 @@
 {
   "name": "typefail",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Test for expected compile-time errors in Typescript",
   "main": "index.js",
   "repository": "https://github.com/jtlapp/typefail.git",
