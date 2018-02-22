@@ -76,7 +76,7 @@ export class FailChecker implements DirectiveConstraints {
             filePaths = [ filePaths ];
         }
         if (filePaths.length === 0) {
-            throw new Error("TypeType constructor requires at least one file");
+            throw new Error("FailChecker constructor requires at least one file");
         }
 
         filePaths.forEach(filePath => {
