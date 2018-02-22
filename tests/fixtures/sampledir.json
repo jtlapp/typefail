@@ -251,6 +251,15 @@
           ]
         }
       ]
+    },
+    {
+      "file": "fixtures/sampledir/subdir/subsubdir/subsubfile1.ts",
+      "groups": [
+        {
+          "group": "Default Group",
+          "failures": []
+        }
+      ]
     }
   ]
 }

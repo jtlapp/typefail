@@ -4,16 +4,97 @@ import { assert } from 'chai';
 import * as fs from 'fs';
 import { join } from 'path';
 import * as ts from 'typescript';
-import { FailChecker, Failure, FailureType } from '../src';
+import { FailChecker, Failure, FailureType, CheckerSetupError } from '../src';
 
 const TEST_FILENAME = join(__dirname, 'fixtures/ts_errors.ts');
 const expectedErrorLines = getExpectedErrorLines(TEST_FILENAME);
+const strictConfigFile = join(__dirname, 'fixtures/tsconfig.json');
 
 interface ErrorLine {
     strict: boolean;
     lineNum: number;
     code: number;
 }
+
+describe("handling bad source file paths", () => {
+
+    it("errors when no files are specified", (done) => {
+
+        assert.throws(() => {
+            new FailChecker([], {
+                compilerOptions: strictConfigFile
+            });
+        }, /requires at least one file/);
+        done();
+    });
+
+    it("errors when specified files are not found", (done) => {
+
+        const checker = new FailChecker([
+            join(__dirname, 'fixtures/notthere1.ts'),
+            join(__dirname, 'fixtures/notthere2.ts'),
+        ], {
+            compilerOptions: strictConfigFile
+        });
+        try {
+            checker.run(false);
+            assert(false, "should have gotten setup errors");
+        }
+        catch (err) {
+            if (!(err instanceof CheckerSetupError)) {
+                throw err;
+            }
+            const errors = err.message.split(FailChecker.ERROR_DELIM);
+            assert.strictEqual(errors.length, 2);
+            assert.match(errors[0], /notthere1.ts' not found/);
+            assert.match(errors[1], /notthere2.ts' not found/);
+        }
+        done();
+    });
+
+    it("errors when wildcard specification matches no files", (done) => {
+
+        const checker = new FailChecker(join(__dirname, 'fixtures/notthere*.ts'), {
+            compilerOptions: strictConfigFile
+        });
+        try {
+            checker.run();
+            assert(false, "should have gotten a setup error");
+        }
+        catch (err) {
+            if (!(err instanceof CheckerSetupError)) {
+                throw err;
+            }
+            assert.match(err.message, /No source files were found to check/);
+        }
+        done();
+    });
+
+    it("errors when a source file path is not absolute", (done) => {
+
+        assert.throws(() => {
+
+            new FailChecker([
+                '/absolute/path',
+                'relative/path'
+            ], {
+                compilerOptions: strictConfigFile
+            });
+        }, /not an absolute path/);
+
+        assert.throws(() => {
+
+            new FailChecker([
+                'relative/path',
+                './another/relative/path'
+            ], {
+                compilerOptions: strictConfigFile
+            });
+        }, /not an absolute path/);
+
+        done();
+    });
+});
 
 describe("compiler configuration", () => {
 
@@ -50,7 +131,7 @@ describe("compiler configuration", () => {
     it("uses named tsconfig.json file", (done) => {
 
         let checker = new FailChecker(TEST_FILENAME, {
-            compilerOptions: join(__dirname, 'fixtures/tsconfig.json')
+            compilerOptions: strictConfigFile
         });
         verifyFailures(checker, true);
 
@@ -89,7 +170,7 @@ describe("root path configuration", () => {
 
         const absFile = join(__dirname, 'fixtures/missing_unexpected.ts');
         const checker = new FailChecker(absFile, {
-            compilerOptions: join(__dirname, 'fixtures/tsconfig.json')
+            compilerOptions: strictConfigFile
         });
         checker.run();
         const failures = <string[]>[];
@@ -107,7 +188,7 @@ describe("root path configuration", () => {
         const relFile = 'fixtures/missing_unexpected.ts';
         const absFile = join(__dirname, relFile);
         const checker = new FailChecker(absFile, {
-            compilerOptions: join(__dirname, 'fixtures/tsconfig.json'),
+            compilerOptions: strictConfigFile,
             rootPath: __dirname
         });
         checker.run();
@@ -120,6 +201,17 @@ describe("root path configuration", () => {
         assert.notInclude(failures[0], absFile);
         assert.include(failures[1], relFile);
         assert.notInclude(failures[1], absFile);
+        done();
+    });
+
+    it("errors when a source file is not in the root path", (done) => {
+
+        assert.throws(() => {
+            new FailChecker(join(__dirname, 'fixtures/sampledir/file1a.ts'), {
+                compilerOptions: strictConfigFile,
+                rootPath: "/somecrazyrootpaththatisnotthere"
+            });
+        }, /not in the root path/);
         done();
     });
 });

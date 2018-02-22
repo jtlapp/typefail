@@ -78,8 +78,12 @@ export class FailChecker implements DirectiveConstraints {
         if (filePaths.length === 0) {
             throw new Error("TypeType constructor requires at least one file");
         }
+
         filePaths.forEach(filePath => {
 
+            if (!path.isAbsolute(filePath)) {
+                throw new Error(`Source file path '${filePath}' is not an absolute path`);
+            }
             if (!glob.hasMagic(filePath)) {
                 this.expectedFileNames.push(filePath);
             }
@@ -106,6 +110,12 @@ export class FailChecker implements DirectiveConstraints {
                 }
                 this.rootRegex = new RegExp(_.escapeRegExp(rootPath), 'g');
             }
+            this.absoluteFileNames.forEach(absFileName => {
+
+                if (!absFileName.startsWith(rootPath)) {
+                    throw new Error(`Source file '${absFileName}' is not in the root path`);
+                }
+            });
         }
 
         this.allowedErrorMatching = options.allowedErrorMatching || 0xFF;
@@ -259,21 +269,27 @@ export class FailChecker implements DirectiveConstraints {
 
     static findNearestConfigFile(filePaths: string[]) {
 
-        function _checkForConfigFile(dirPath: string): string | null {
-            const tsconfigFile = path.join(dirPath, 'tsconfig.json');
-            if (fs.existsSync(tsconfigFile)) {
-                return tsconfigFile;
-            }
-            const parentDirPath = path.dirname(dirPath);
-            if (parentDirPath === dirPath) { // should work on both unix and windows
-                return null;
-            }
-            return _checkForConfigFile(parentDirPath);
-        }
+        // Validate the file paths.
 
         if (filePaths.length === 0) {
             throw new Error("No files specified");
         }
+        filePaths.forEach(filePath => {
+
+            if (!path.isAbsolute(filePath)) {
+                throw new Error("All file paths must be absolute paths");
+            }
+        });
+        const rootPath = path.parse(filePaths[0]).root;
+        filePaths.forEach(filePath => {
+
+            // TBD: Not sure how to test this in an OS-independent way.
+            if (path.parse(filePath).root !== rootPath) {
+                throw new Error("All file paths must share a common root");
+            }
+        });
+        
+        // Find the path that is common to all provided paths.
 
         let commonPath = path.dirname(filePaths[0]);
         for (let i = 1; i < filePaths.length; ++i) {
@@ -283,6 +299,22 @@ export class FailChecker implements DirectiveConstraints {
                 commonPath = path.dirname(commonPath);
             }
         }
+
+        // Recursively locate tsconfig.json in a containing directory.
+
+        function _checkForConfigFile(dirPath: string): string | null {
+            const tsconfigFile = path.join(dirPath, 'tsconfig.json');
+            if (fs.existsSync(tsconfigFile)) {
+                return tsconfigFile;
+            }
+            const parentDirPath = path.dirname(dirPath);
+            if (parentDirPath === rootPath) {
+                return null;
+            }
+            return _checkForConfigFile(parentDirPath);
+        }
+
+        // Find the nearest tsconfig.json to the common path.
 
         return _checkForConfigFile(commonPath);
     }

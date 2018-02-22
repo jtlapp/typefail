@@ -80,7 +80,7 @@ export function toErrorString(
         errorType = 'missing error';
     }
     else {
-        errorType = 'error';
+        errorType = 'unexpected error';
     }
 
     const codeStr = (code === undefined ? '' : ` TS${code}`);

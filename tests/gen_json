@@ -1,0 +1,5 @@
+# Run this script from the repo root (tests/gen_json) to re-generate .json files
+# needed for testing when any of the relevant fixture files change.
+
+ts-node bin/typefail.ts "tests/fixtures/sampledir/{,**/}*.ts" --root=tests --json > tests/fixtures/sampledir.json
+ts-node bin/typefail.ts tests/fixtures/sampledir/file1a.ts --root=tests --json > tests/fixtures/sampledir/file1a.json

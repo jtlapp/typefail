@@ -27,7 +27,7 @@ const sampleDirChecker = new FailChecker(sampleDirFiles, {
 });
 sampleDirChecker.run();
 
-// created via: ts-node bin/typefail.ts test/fixtures/sampledir/{,**/}*.ts --root=test --json > test/fixtures/sampledir.json
+// Update sampledir.json by running tests/gen_json from the repo directory.
 const sampleDirPojo = require('./fixtures/sampledir.json');
 
 const sampleDirMap = new Map<string, Map<string, any>>();
@@ -39,61 +39,6 @@ sampleDirPojo.files.forEach((fileData: any) => {
          groupMap.set(groupData.group, groupData);
      });
      sampleDirMap.set(fileData.file, groupMap);
-});
-
-describe("handling missing files", () => {
-
-    it("errors when no files are specified", (done) => {
-
-        assert.throws(() => {
-            new FailChecker([], {
-                compilerOptions: tsconfigFile
-            });
-        }, /requires at least one file/);
-        done();
-    });
-
-    it("errors when specified files are not found", (done) => {
-
-        const checker = new FailChecker([
-            join(__dirname, 'fixtures/notthere1.ts'),
-            join(__dirname, 'fixtures/notthere2.ts'),
-        ], {
-            compilerOptions: tsconfigFile
-        });
-        try {
-            checker.run(false);
-            assert(false, "should have gotten setup errors");
-        }
-        catch (err) {
-            if (!(err instanceof CheckerSetupError)) {
-                throw err;
-            }
-            const errors = err.message.split(FailChecker.ERROR_DELIM);
-            assert.strictEqual(errors.length, 2);
-            assert.match(errors[0], /notthere1.ts' not found/);
-            assert.match(errors[1], /notthere2.ts' not found/);
-        }
-        done();
-    });
-
-    it("errors when wildcard specification matches no files", (done) => {
-
-        const checker = new FailChecker(join(__dirname, 'fixtures/notthere*.ts'), {
-            compilerOptions: tsconfigFile
-        });
-        try {
-            checker.run();
-            assert(false, "should have gotten a setup error");
-        }
-        catch (err) {
-            if (!(err instanceof CheckerSetupError)) {
-                throw err;
-            }
-            assert.match(err.message, /No source files were found to check/);
-        }
-        done();
-    });
 });
 
 describe("bailing on setup errors", () => {
