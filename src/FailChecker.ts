@@ -17,6 +17,7 @@ import {
 } from './directives';
 import { CheckerSetupError, CheckerFailureError } from './errors';
 
+// TBD: remove dependency on typescript module, allow any version of Typescript
 // TBD: look at adding test labels for any node -- expecting errors or not
 // TBD: space-separated params should characterize the same error
 // TBD: pretty up CLI output

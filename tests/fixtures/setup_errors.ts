@@ -1,6 +1,6 @@
 
 /* typefail:group "bad' */
-// typefail:expect-errord
+// typefail:errord
 
 const x = 1;
 x; // used
