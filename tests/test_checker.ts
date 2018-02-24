@@ -43,11 +43,13 @@ sampleDirPojo.files.forEach((fileData: any) => {
 
 describe("bailing on setup errors", () => {
 
+    const setupErrorsFile = join(__dirname, 'fixtures/setup_errors.ts');
+
     it("bails on first detected setup error", (done) => {
 
-        const checker = new FailChecker(join(__dirname, 'fixtures/setup_errors.ts'), {
+        const checker = new FailChecker(setupErrorsFile, {
             compilerOptions: tsconfigFile,
-            rootPath: __dirname
+            rootPath: __dirname // necessary to test that setup errors paths are absolute
         });
         try {
             checker.run();
@@ -60,15 +62,17 @@ describe("bailing on setup errors", () => {
             const errors = err.message.split(FailChecker.ERROR_DELIM);
             assert.strictEqual(errors.length, 1);
             assert.match(errors[0], /string parameter/);
+            // Setup errors must contain absolute paths.
+            assert.include(errors[0], setupErrorsFile);
         }
         done();
     });
 
     it("reports all setup errors without bailing", (done) => {
 
-        const checker = new FailChecker(join(__dirname, 'fixtures/setup_errors.ts'), {
+        const checker = new FailChecker(setupErrorsFile, {
             compilerOptions: tsconfigFile,
-            rootPath: __dirname
+            rootPath: __dirname // necessary to test that setup errors paths are absolute
         });
         try {
             checker.run(false);
@@ -81,7 +85,9 @@ describe("bailing on setup errors", () => {
             const errors = err.message.split(FailChecker.ERROR_DELIM);
             assert.strictEqual(errors.length, 2);
             assert.match(errors[0], /string parameter/);
+            assert.include(errors[0], setupErrorsFile); // must be absolute path
             assert.match(errors[1], /directive name/);
+            assert.include(errors[1], setupErrorsFile); // must be absolute path
         }
         done();
     });
@@ -107,7 +113,7 @@ describe("listing loaded files", () => {
         done();
     });
 
-    it("lists a specified absolute file path", (done) => {
+    it("lists a specified absolute file path, without root path", (done) => {
 
         const absFile1a = join(__dirname, 'fixtures/sampledir/file1a.ts');
         const checker = new FailChecker(absFile1a, {
@@ -239,11 +245,22 @@ describe("testing loaded files", () => {
 
 describe("selectively verifying files", () => {
 
-    it("verifies selected file", (done) => {
+    it("verifies selected file specified as a relative path", (done) => {
 
         const expectedErrors = <string[]>[];
         _addExpectedErrors(expectedErrors, file1a);
-        _verifyErrors(sampleDirChecker.failures(file1a), expectedErrors, "in selected file");
+        _verifyErrors(sampleDirChecker.failures(file1a), expectedErrors,
+                "in selected relative file");
+        done();
+    });
+
+    it("verifies selected file specified as an absolute path", (done) => {
+
+        const absFile1a = join(__dirname, file1a);
+        const expectedErrors = <string[]>[];
+        _addExpectedErrors(expectedErrors, file1a);
+        _verifyErrors(sampleDirChecker.failures(absFile1a), expectedErrors,
+                "in selected absolute file");
         done();
     });
 
@@ -261,8 +278,18 @@ describe("selectively verifying files", () => {
     it("errors when the selected file is not present", (done) => {
 
         assert.throws(() => {
+            
             sampleDirChecker.failures("non-existent file").next();
         }, /file.*not found/i);
+        done();
+    });
+
+    it("errors when wildcard selection is not in root path", (done) => {
+
+        assert.throws(() => {
+
+            sampleDirChecker.failures("/non-existent/*").next();
+        }, /must start with provided root path/i);
         done();
     });
 });
@@ -360,18 +387,34 @@ describe("enumerating groups", () => {
 
 describe("selectively verifying groups", () => {
 
-    it("verifies groups by name", (done) => {
+    it("verifies groups by name in a relative-specified file", (done) => {
 
         let expectedErrors = <string[]>[];
         let groupName = "Uniquely errors unexpected-TS2345 and missing-TS2451";
         _addExpectedErrors(expectedErrors, subfile2a, groupName);
         _verifyErrors(sampleDirChecker.failures(subfile2a, groupName), expectedErrors,
-                "in file-group verification 1");
+                "in relative-file/group verification 1");
         expectedErrors = <string[]>[];
         groupName = "Uniquely errors missing-TS2345 and missing-TS2451";
         _addExpectedErrors(expectedErrors, subfile2a, groupName);
         _verifyErrors(sampleDirChecker.failures(subfile2a, groupName), expectedErrors,
-                "in file-group verification 2");
+                "in relative-file/group verification 2");
+        done();
+    });
+
+    it("verifies groups by name in an absolute-specified file", (done) => {
+
+        const absSubfile2a = join(__dirname, subfile2a);
+        let expectedErrors = <string[]>[];
+        let groupName = "Uniquely errors unexpected-TS2345 and missing-TS2451";
+        _addExpectedErrors(expectedErrors, subfile2a, groupName);
+        _verifyErrors(sampleDirChecker.failures(absSubfile2a, groupName), expectedErrors,
+                "in absolute-file/group verification 1");
+        expectedErrors = <string[]>[];
+        groupName = "Uniquely errors missing-TS2345 and missing-TS2451";
+        _addExpectedErrors(expectedErrors, subfile2a, groupName);
+        _verifyErrors(sampleDirChecker.failures(absSubfile2a, groupName), expectedErrors,
+                "in absolute-file/group verification 2");
         done();
     });
 

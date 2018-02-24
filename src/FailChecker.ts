@@ -19,11 +19,8 @@ import { CheckerSetupError, CheckerFailureError } from './errors';
 
 // TBD: look at adding test labels for any node -- expecting errors or not
 // TBD: space-separated params should characterize the same error
-// TBD: look at simplifying code by indexing on root-relative filenames
-
-// TBD: test that both root-relative and absolute selectors work (w/+w/out group)
-// TBD: test that setup errors always use absolute paths
-// TBD: test that absolute selectors must be in root path (w/+w/out group)
+// TBD: pretty up CLI output
+// TBD: test suite for CLI
 
 export interface CheckerOptions {
     compilerOptions: string | ts.CompilerOptions,
