@@ -13,6 +13,6 @@
         "sourceMap": true
     },
     "exclude": [
-        "test/fixtures"
+        "tests/fixtures"
     ]
 }

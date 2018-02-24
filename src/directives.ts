@@ -1,12 +1,12 @@
 
 import * as ts from 'typescript';
+import { Failure, FailureType } from './failure';
 import * as tsutil from './tsutil';
-import { Failure, RootedFailure } from './failure';
 import { CheckerSetupError } from './errors';
 
 const DIRECTIVE_PREFIX = 'typefail';
 const DIRECTIVE_NAME_GROUP = 'group';
-const DIRECTIVE_NAME_EXPECT_ERROR = 'error';
+const DIRECTIVE_NAME_ERROR = 'error';
 
 const COMMA = ",".charCodeAt(0);
 const SPACE = " ".charCodeAt(0);
@@ -42,7 +42,8 @@ export abstract class Directive {
 
     constructor(
         public type: string,
-        public fileName: string,
+        public absoluteFileName: string,
+        public relativeFileName: string, // relative to root path, if provided
         public directiveLineNum: number,
         public targetLineNum: number
     ) { }
@@ -52,16 +53,18 @@ export abstract class Directive {
     }
 
     error(message: string, charNum?: number) {
+        const location = tsutil.toFileLocation(this.absoluteFileName, this.directiveLineNum,
+                charNum);
         return new CheckerSetupError(`'${Directive.toDirective(this.type)}' directive ${message} `+
-                `at ${tsutil.toFileLocation(this.fileName, this.directiveLineNum, charNum)}`);
+                `at ${location}`);
     }
 
     // Generically parse directive parameters, allowing for easy expansion later.
     // Returns null when the provided comment line is not a TYPEFAIL directive.
 
     static parse(
-        rootRegex: RegExp | null,
         file: ts.SourceFile,
+        relativeFileName: string,
         isFirstNode: boolean,
         node: ts.Node,
         nodeText: string,
@@ -218,13 +221,13 @@ export abstract class Directive {
         try {
             switch (name) {
                 case DIRECTIVE_NAME_GROUP:
-                directive = new GroupDirective(file.fileName, commentInfo.lineNum, targetLineNum,
-                        isFirstNode, params);
+                directive = new GroupDirective(file.fileName, relativeFileName,
+                        commentInfo.lineNum, targetLineNum, isFirstNode, params);
                 break;
 
-                case DIRECTIVE_NAME_EXPECT_ERROR:
-                directive = new ExpectErrorDirective(rootRegex, file.fileName, commentInfo.lineNum,
-                        targetLineNum, params);
+                case DIRECTIVE_NAME_ERROR:
+                directive = new ErrorDirective(file.fileName, relativeFileName,
+                        commentInfo.lineNum, targetLineNum, params);
                 break;
 
                 default:
@@ -257,13 +260,15 @@ export class GroupDirective extends Directive {
     groupName: string;
 
     constructor(
-        fileName: string,
+        absoluteFileName: string,
+        relativeFileName: string,
         directiveLineNum: number,
         targetLineNum: number,
         isFirstNode: boolean,
         params: Param[]
     ) {
-        super(DIRECTIVE_NAME_GROUP, fileName, directiveLineNum, targetLineNum);
+        super(DIRECTIVE_NAME_GROUP, absoluteFileName, relativeFileName, directiveLineNum,
+                targetLineNum);
         this.isFirstNode = isFirstNode;
         if (params.length > 1) {
             throw this.error("takes only one parameter", params[1].charNum);
@@ -275,23 +280,24 @@ export class GroupDirective extends Directive {
     }
 }
 
-export class ExpectErrorDirective extends Directive {
+export class ErrorDirective extends Directive {
 
     errorMatching: ErrorMatching; // error matching employed
     pattern: string | undefined;
     expectedErrors: ExpectedError[] = [];
 
     constructor(
-        rootRegex: RegExp | null,
-        fileName: string,
+        absoluteFileName: string,
+        relativeFileName: string,
         directiveLineNum: number,
         targetLineNum: number,
         params: Param[]
     ) {
-        super(DIRECTIVE_NAME_EXPECT_ERROR, fileName, directiveLineNum, targetLineNum);
+        super(DIRECTIVE_NAME_ERROR, absoluteFileName, relativeFileName, directiveLineNum,
+                targetLineNum);
 
         if (params.length === 0) {
-            this.expectedErrors.push(new ExpectedError(rootRegex, this, undefined, 'any error',
+            this.expectedErrors.push(new ExpectedError(this, undefined, 'any error',
                 (failure) => true /*match any error*/));
             this.errorMatching = ErrorMatching.Any;
         }
@@ -302,7 +308,7 @@ export class ExpectErrorDirective extends Directive {
                     throw this.error("invalid parameter", params[1].charNum);
                 }
                 const pattern = `/${firstValue.source}/${firstValue.flags}`;
-                this.expectedErrors.push(new ExpectedError(rootRegex, this, undefined, pattern,
+                this.expectedErrors.push(new ExpectedError(this, undefined, pattern,
                     (failure) => firstValue.test(failure.message!)));
                 this.errorMatching = ErrorMatching.Regex;
             }
@@ -311,7 +317,7 @@ export class ExpectErrorDirective extends Directive {
                     throw this.error("invalid parameter", params[1].charNum);
                 }
                 const pattern = `"${firstValue.replace(/"/g, '\\"')}"`;
-                this.expectedErrors.push(new ExpectedError(rootRegex, this, undefined, pattern,
+                this.expectedErrors.push(new ExpectedError(this, undefined, pattern,
                     (failure) => failure.message === firstValue));
                 this.errorMatching = ErrorMatching.Exact;
             }
@@ -321,7 +327,7 @@ export class ExpectErrorDirective extends Directive {
                         throw this.error("invalid parameter", param.charNum);
                     }
                     const code = param.value;
-                    this.expectedErrors.push(new ExpectedError(rootRegex, this, code, undefined,
+                    this.expectedErrors.push(new ExpectedError(this, code, undefined,
                         (failure => failure.code === code)));
                 });
                 this.errorMatching = ErrorMatching.Code;
@@ -344,29 +350,27 @@ export class ExpectErrorDirective extends Directive {
         }
         return Directive.error(`Configuration does not allow `+
                 `${ErrorMatching[this.errorMatching].toLowerCase()} error matching`,
-                this.fileName, this.directiveLineNum);
+                this.absoluteFileName, this.directiveLineNum);
     }
 }
 
 export class ExpectedError {
     constructor(
-        public rootRegex: RegExp | null,
-        public directive: ExpectErrorDirective,
+        public directive: ErrorDirective,
         public code: number | undefined,
         public message: string | undefined,
         public matches: (failure: Failure) => boolean
     ) { }
 
-    toFailure() {
-        return new RootedFailure(
-            this.rootRegex,
-            tsutil.FailureType.MissingError,
-            {
-                fileName: this.directive.fileName,
+    toFailure(): Failure {
+        return {
+            type: FailureType.MissingError,
+            at: {
+                fileName: this.directive.relativeFileName,
                 lineNum: this.directive.targetLineNum
             },
-            this.code,
-            this.message
-        );
+            code: this.code,
+            message: this.message
+        };
     }
 }

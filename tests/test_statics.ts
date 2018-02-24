@@ -2,19 +2,17 @@
 import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
-import { FailChecker, FailureType } from '../src';
-import { FailureInfo } from './lib/testlib';
+import { FailChecker, Failure, FailureType } from '../src';
 
 describe("error string generation", () => {
 
-    function toString(errorInfo: FailureInfo) {
-        return FailChecker.toErrorString(errorInfo.type, errorInfo.at,
-                errorInfo.code, errorInfo.message);
+    function toString(errorInfo: Failure) {
+        return FailChecker.toErrorString(errorInfo);
     }
 
     it("generates missing error strings", (done) => {
 
-        const errInfo: FailureInfo = {
+        const errInfo: Failure = {
             type: FailureType.MissingError,
             at: {
                 fileName: 'dir/file.ts',
@@ -37,7 +35,7 @@ describe("error string generation", () => {
 
     it("generates unexpected error strings", (done) => {
 
-        const errInfo: FailureInfo = {
+        const errInfo: Failure = {
             type: FailureType.UnexpectedError,
             at: {
                 fileName: 'dir/file.ts',

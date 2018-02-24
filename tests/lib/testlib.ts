@@ -1,18 +1,10 @@
 
 import { assert } from 'chai';
-import { FailureType, FileLocation } from '../../src';
 
 export interface DirectiveError {
     excerpt: string;
     lineNum: number;
     charNum?: number;
-}
-
-export interface FailureInfo {
-    type: FailureType,
-    at: FileLocation,
-    code?: number,
-    message?: string
 }
 
 export function verifyErrorMessages(actuals: string[], expecteds: string[], label: string) {

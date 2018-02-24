@@ -8,7 +8,7 @@ import {
     CheckerSetupError,
     Failure
 } from '../src';
-import { FailureInfo, verifyErrorMessages } from './lib/testlib';
+import { verifyErrorMessages } from './lib/testlib';
 
 const tsconfigFile = join(__dirname, 'fixtures/tsconfig.json');
 const sampleDirFiles = join(__dirname, 'fixtures/sampledir/{,**/}*.ts');
@@ -471,15 +471,10 @@ function _addExpectedErrors(expectedErrors: string[], filePath: string, groupNam
     }
 }
 
-function _addExpectedGroupErrors(expectedErrors: string[], groupData: { failures: FailureInfo[] }) {
-    groupData.failures.forEach((failure: FailureInfo) => {
+function _addExpectedGroupErrors(expectedErrors: string[], groupData: { failures: Failure[] }) {
+    groupData.failures.forEach((failure: Failure) => {
 
-        expectedErrors.push(FailChecker.toErrorString(
-            failure.type,
-            failure.at,
-            failure.code,
-            failure.message
-        ));
+        expectedErrors.push(FailChecker.toErrorString(failure));
     });
 }
 
@@ -499,7 +494,7 @@ function _verifyErrors(failureIter: IterableIterator<Failure>, expecteds: string
     const actuals = <string[]>[];
 
     for (let failure of failureIter) {
-        actuals.push(failure.toErrorString());
+        actuals.push(FailChecker.toErrorString(failure));
     }
     verifyErrorMessages(actuals, expecteds, label);
 }

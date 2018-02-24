@@ -5,22 +5,25 @@ import * as glob from 'glob';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as _ from 'lodash';
+import { Failure, FailureType, toErrorString } from './failure';
 import * as tsutil from './tsutil';
 import {
     DirectiveConstraints,
     Directive,
     GroupDirective,
-    ExpectErrorDirective,
+    ErrorDirective,
     ExpectedError,
     ErrorMatching
 } from './directives';
-import { Failure, RootedFailure } from './failure';
 import { CheckerSetupError, CheckerFailureError } from './errors';
 
 // TBD: look at adding test labels for any node -- expecting errors or not
-// TBD: default load tsconfig.json, searching up dir tree (command line tool)
 // TBD: space-separated params should characterize the same error
 // TBD: look at simplifying code by indexing on root-relative filenames
+
+// TBD: test that both root-relative and absolute selectors work (w/+w/out group)
+// TBD: test that setup errors always use absolute paths
+// TBD: test that absolute selectors must be in root path (w/+w/out group)
 
 export interface CheckerOptions {
     compilerOptions: string | ts.CompilerOptions,
@@ -30,6 +33,7 @@ export interface CheckerOptions {
 
 interface FileMark {
     file: ts.SourceFile; // file being scanned
+    relativeFileName: string; // file name relative to root path
     linesRead: number; // number of lines so far read from file
 }
 
@@ -62,6 +66,7 @@ export class FailChecker implements DirectiveConstraints {
     protected rootRegex: RegExp | null = null;
     protected expectedFileNames: string[] = [];
     protected absoluteFileNames: string[] = [];
+    protected relativeFileNames: string[] = [];
     protected options: CheckerOptions;
     protected compilerOptions: ts.CompilerOptions;
     protected program: ts.Program | undefined; // undefined before run()
@@ -144,6 +149,13 @@ export class FailChecker implements DirectiveConstraints {
             this.setupErrorMessages.push(`No source files were found to check`);
         }
 
+        // Collect the root-relative file paths.
+
+        foundFileNames.forEach(fileName => {
+
+            this.relativeFileNames.push(tsutil.normalizePaths(this.rootRegex, fileName));
+        });
+
         // Parse the source files and load the errors.
 
         this._loadErrors(bailOnFirstError);
@@ -159,17 +171,14 @@ export class FailChecker implements DirectiveConstraints {
         }
     }
     
-    // paths must be specified relative to the root path, if there is one;
-    // empty string selects all files regardless of root path
+    // paths must be either absolute or relative to root path
 
-    files(filePath = '') {
-        return this._absoluteFiles(filePath).map(fileName => {
-            return tsutil.normalizePaths(this.rootRegex, fileName);
-        });
+    files(filePath = '*') {
+        return this._filterFiles(filePath).slice();
     }
 
-    *groups(filePath = '') {
-        for (let file of this._absoluteFiles(filePath)) {
+    *groups(filePath = '*') {
+        for (let file of this._filterFiles(filePath)) {
             const fileIndex = this._getFileIndex(file);
             for (let groupName of fileIndex.keys()) {
                 yield groupName;
@@ -177,9 +186,9 @@ export class FailChecker implements DirectiveConstraints {
         }
     }
 
-    *failures(filePath = '', groupName?: string) {
+    *failures(filePath = '*', groupName?: string) {
         if (groupName === undefined) {
-            for (let file of this._absoluteFiles(filePath)) {
+            for (let file of this._filterFiles(filePath)) {
                 const fileIndex = this._getFileIndex(file);
                 for (let groupName of fileIndex.keys()) {
                     for (let failure of fileIndex.get(groupName)!) {
@@ -190,7 +199,7 @@ export class FailChecker implements DirectiveConstraints {
         }
         else {
             this._getProgram(); // make sure checker has been run
-            filePath = this._toAbsoluteFile(filePath);
+            filePath = this._normalizePath(filePath);
             const fileIndex = this._getFileIndex(filePath);
             if (fileIndex === undefined) {
                 throw new Error(`File '${filePath}' not found`); // fatal error
@@ -248,7 +257,7 @@ export class FailChecker implements DirectiveConstraints {
         return JSON.stringify(pojo, null, spaces);
     }
 
-    throwCombinedError(filePath = '', groupName?: string) {
+    throwCombinedError(filePath = '*', groupName?: string) {
         const failures: Failure[] = [];
         // There are more performant solutions, but this is simplest.
         for (let failure of this.failures(filePath, groupName)) {
@@ -256,14 +265,14 @@ export class FailChecker implements DirectiveConstraints {
         }
         if (failures.length > 0) {
             throw new CheckerFailureError(failures.map(failure => {
-                return failure.toErrorString();
+                return toErrorString(failure);
             }).join(FailChecker.ERROR_DELIM));
         }
     }
 
-    throwFirstError(filePath = '', groupName?: string) {
+    throwFirstError(filePath = '*', groupName?: string) {
         for (let failure of this.failures(filePath, groupName)) {
-            throw new CheckerFailureError(failure.toErrorString(), failure.code);
+            throw new CheckerFailureError(toErrorString(failure), failure.code);
         }
     }
 
@@ -319,23 +328,18 @@ export class FailChecker implements DirectiveConstraints {
         return _checkForConfigFile(commonPath);
     }
 
-    static toErrorString(
-        type: tsutil.FailureType,
-        at: tsutil.FileLocation,
-        code?: number,
-        message?: string
-    ) {
-        return tsutil.toErrorString(type, at, code, message);
+    static toErrorString(failure: Failure) {
+        return toErrorString(failure);
     }
 
-    protected _absoluteFiles(filePath: string) {
-        filePath = this._toAbsoluteFile(filePath);
+    protected _filterFiles(filePath: string) {
+        filePath = this._normalizePath(filePath);
         const mm = minimatch.filter(filePath, { matchBase: true });
-        const absoluteFiles = this._foundFileNames().filter(mm);
-        if (!glob.hasMagic(filePath) && absoluteFiles[0] !== filePath) {
+        const filteredFiles = this.relativeFileNames.filter(mm);
+        if (!glob.hasMagic(filePath) && filteredFiles[0] !== filePath) {
             throw new Error(`File '${filePath}' not found in text`);
         }
-        return absoluteFiles;
+        return filteredFiles;
     }
 
     protected _getFileIndex(fileName: string) {
@@ -381,7 +385,7 @@ export class FailChecker implements DirectiveConstraints {
                     groupName = directive.groupName;
                     firstGroup = false;
                 }
-                else if (directive instanceof ExpectErrorDirective) {
+                else if (directive instanceof ErrorDirective) {
                     directive.addExpectedErrors(groupExpectedErrors);
                 }
             });
@@ -419,7 +423,11 @@ export class FailChecker implements DirectiveConstraints {
 
         for (let file of sourceFiles) {
             // Count line preceding first LF of file, which may be only line.
-            const fileMark = { file, linesRead: 1 };
+            const fileMark = {
+                file,
+                relativeFileName: tsutil.normalizePaths(this.rootRegex, file.fileName),
+                linesRead: 1
+            };
             ts.forEachChild(file, child => {
 
                 this._collectDirectives(child, fileMark, bailOnFirstError);
@@ -433,26 +441,32 @@ export class FailChecker implements DirectiveConstraints {
 
         diagnostics.forEach(diagnostic => {
             const code = diagnostic.code;
-            const message = ts.flattenDiagnosticMessageText(
+            const rawMessage = ts.flattenDiagnosticMessageText(
                 diagnostic.messageText,
                 FailChecker.ERROR_DELIM
             );
+            const message = tsutil.normalizePaths(this.rootRegex, rawMessage);
+            
             if (diagnostic.file) {
-                const fileName = diagnostic.file.fileName;
+                const relativeFileName =
+                        tsutil.normalizePaths(this.rootRegex, diagnostic.file.fileName);
                 const { line, character } =
                         diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start!);
-                const failure = new RootedFailure(
-                    this.rootRegex,
-                    tsutil.FailureType.UnexpectedError,
-                    { fileName, lineNum: line + 1, charNum: character + 1 },
+                const failure = {
+                    type: FailureType.UnexpectedError,
+                    at: {
+                        fileName: relativeFileName,
+                        lineNum: line + 1,
+                        charNum: character + 1
+                    },
                     code,
                     message
-                );
+                };
                 const failureCandidate = new FailureCandidate(failure);
-                const failureCandidates = this.failureCandidates.get(fileName) || [];
+                const failureCandidates = this.failureCandidates.get(relativeFileName) || [];
                 failureCandidates.push(<FailureCandidate>failureCandidate);
                 if (failureCandidates.length === 1) {
-                    this.failureCandidates.set(fileName, failureCandidates);
+                    this.failureCandidates.set(relativeFileName, failureCandidates);
                 }
             }
             else {
@@ -464,6 +478,16 @@ export class FailChecker implements DirectiveConstraints {
         });
     }
 
+    protected _normalizePath(filePath: string) {
+        if (path.isAbsolute(filePath) && this.rootPath !== undefined) {
+            if (!filePath.startsWith(this.rootPath)) {
+                throw new Error("Source file path must start with provided root path");
+            }
+            return tsutil.normalizePaths(this.rootRegex, filePath);
+        }
+        return filePath;
+    }
+
     protected _foundFileNames() {
         return this._getProgram().getRootFileNames();
     }
@@ -471,7 +495,8 @@ export class FailChecker implements DirectiveConstraints {
     private _collectDirectives(node: ts.Node, fileMark: FileMark, bailOnFirstError: boolean) {
 
         const file = fileMark.file;
-        const directives = this.directives.get(file.fileName) || [];
+        const relativeFileName = fileMark.relativeFileName;
+        const directives = this.directives.get(relativeFileName) || [];
         const nodeText = node.getFullText();
         const isFirstNode = (fileMark.linesRead === 1);
         // Track lines read for determining line numbers of directives.
@@ -480,8 +505,8 @@ export class FailChecker implements DirectiveConstraints {
         const comments = tsutil.getNodeComments(nodeText, fileMark.linesRead);
         if (comments !== null) {
             comments.forEach(comment => {
-                let result = Directive.parse(this.rootRegex, file, isFirstNode, node, nodeText,
-                        comment);
+                let result = Directive.parse(file, relativeFileName, isFirstNode, node,
+                        nodeText, comment);
                 if (result !== null) {
                     if (result instanceof Directive) {
                         const err = result.validate(this);
@@ -491,7 +516,7 @@ export class FailChecker implements DirectiveConstraints {
                         else {
                             directives.push(result);
                             if (directives.length === 1) {
-                                this.directives.set(file.fileName, directives);
+                                this.directives.set(relativeFileName, directives);
                             }
                         }
                     }
@@ -664,15 +689,5 @@ export class FailChecker implements DirectiveConstraints {
             expectedError: nextExpectedError,
             firstFailureCandidate
         };
-    }
-
-    private _toAbsoluteFile(filePath: string) {
-        if (filePath === '') {
-            return '*';
-        }
-        if (filePath[0] !== path.sep && this.rootPath !== undefined) {
-            return path.join(this.rootPath, filePath);
-        }
-        return filePath;
     }
 }

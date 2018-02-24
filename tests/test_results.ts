@@ -2,8 +2,8 @@
 import 'mocha';
 import { assert } from 'chai';
 import * as path from 'path';
-import { FailChecker, FailureType } from '../src';
-import { FailureInfo, verifyErrorMessages } from './lib/testlib';
+import { FailChecker, Failure, FailureType } from '../src';
+import { verifyErrorMessages } from './lib/testlib';
 
 const testFile = path.join(__dirname, 'fixtures/mock_test.ts');
 const tsconfigFile = path.join(__dirname, 'fixtures/tsconfig.json');
@@ -54,7 +54,7 @@ describe("mockup test", () => {
     const group6 = "Fails when no expected error occurs";
     it(group6, (done) => {
 
-        const failures: FailureInfo[] = [
+        const failures: Failure[] = [
             {
                 "type": 1,
                 "at": {
@@ -95,7 +95,7 @@ describe("mockup test", () => {
     const group7 = "Fails when error matches no expected error";
     it(group7, (done) => {
 
-        const failures: FailureInfo[] = [
+        const failures: Failure[] = [
             {
                 "type": 1,
                 "at": {
@@ -184,7 +184,7 @@ describe("mockup test", () => {
     const group8 = "Fails when not all expected errors occur";
     it(group8, (done) => {
 
-        const failures: FailureInfo[] = [
+        const failures: Failure[] = [
             {
                 "type": 1,
                 "at": {
@@ -234,7 +234,7 @@ describe("mockup test", () => {
     const group10 = "Requires expected error only on the expected line";
     it(group10, (done) => {
 
-        const failures: FailureInfo[] = [
+        const failures: Failure[] = [
             {
                 "type": 1,
                 "at": {
@@ -301,25 +301,20 @@ describe("edge cases", () => {
 function _verifyFailures(
     checker: FailChecker,
     groupName: string,
-    expectedFailures: FailureInfo[]
+    expectedFailures: Failure[]
 ) {
     // Convert expected failures to expected error strings.
 
     const expectedErrors = expectedFailures.map(expected => {
 
-        return FailChecker.toErrorString(
-            expected.type,
-            expected.at,
-            expected.code,
-            expected.message
-        );
+        return FailChecker.toErrorString(expected);
     });
 
     // Verify checker.failures() behavior.
 
     const actualErrors = <string[]>[];
     for (let failure of checker.failures(testFile, groupName)) {
-        actualErrors.push(failure.toErrorString());
+        actualErrors.push(FailChecker.toErrorString(failure));
     }
     verifyErrorMessages(actualErrors, expectedErrors, 'in failures()');
 

@@ -175,7 +175,7 @@ describe("root path configuration", () => {
         checker.run();
         const failures = <string[]>[];
         for (let failure of checker.failures()) {
-            failures.push(failure.toErrorString());
+            failures.push(FailChecker.toErrorString(failure));
         }
         assert.strictEqual(failures.length, 2);
         assert.include(failures[0], absFile);
@@ -194,7 +194,7 @@ describe("root path configuration", () => {
         checker.run();
         const failures = <string[]>[];
         for (let failure of checker.failures()) {
-            failures.push(failure.toErrorString());
+            failures.push(FailChecker.toErrorString(failure));
         }
         assert.strictEqual(failures.length, 2);
         assert.include(failures[0], relFile);
@@ -254,7 +254,7 @@ function verifyFailures(checker: FailChecker, strict: boolean) {
                 const failuresAtLine = getAllFailuresAtLine(failures, failureIndex);
                 const nextFailure = failuresAtLine[0];
                 if (nextFailure.at.lineNum < errorLine.lineNum) {
-                    assert(false, `unexpected failure: ${nextFailure.toErrorString()}`);
+                    assert(false, `unexpected failure: ${FailChecker.toErrorString(nextFailure)}`);
                 }
                 else if (nextFailure.at.lineNum === errorLine.lineNum) {
                     foundError = failuresAtLine.reduce((found, failure) => {
@@ -274,7 +274,7 @@ function verifyFailures(checker: FailChecker, strict: boolean) {
 
     if (failureIndex < failures.length) {
         const nextFailure = failures[failureIndex];
-        assert(false, `unexpected failure: ${nextFailure.toErrorString()}`);
+        assert(false, `unexpected failure: ${FailChecker.toErrorString(nextFailure)}`);
     }
 }
 
@@ -301,12 +301,12 @@ function validateFailure(failure: Failure) {
 
 
 function toErrorStringFromLine(errorLine: ErrorLine) {
-    return FailChecker.toErrorString(
-        FailureType.MissingError,
-        {
+    return FailChecker.toErrorString({
+        type: FailureType.MissingError,
+        at: {
             fileName: TEST_FILENAME,
             lineNum: errorLine.lineNum
         },
-        errorLine.code
-    );
+        code: errorLine.code
+    });
 }
