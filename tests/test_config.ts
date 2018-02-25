@@ -22,6 +22,7 @@ describe("handling bad source file paths", () => {
 
         assert.throws(() => {
             new FailChecker([], {
+                compiler: ts,
                 compilerOptions: strictConfigFile
             });
         }, /requires at least one file/);
@@ -34,6 +35,7 @@ describe("handling bad source file paths", () => {
             join(__dirname, 'fixtures/notthere1.ts'),
             join(__dirname, 'fixtures/notthere2.ts'),
         ], {
+            compiler: ts,
             compilerOptions: strictConfigFile
         });
         try {
@@ -55,6 +57,7 @@ describe("handling bad source file paths", () => {
     it("errors when wildcard specification matches no files", (done) => {
 
         const checker = new FailChecker(join(__dirname, 'fixtures/notthere*.ts'), {
+            compiler: ts,
             compilerOptions: strictConfigFile
         });
         try {
@@ -78,6 +81,7 @@ describe("handling bad source file paths", () => {
                 '/absolute/path',
                 'relative/path'
             ], {
+                compiler: ts,
                 compilerOptions: strictConfigFile
             });
         }, /not an absolute path/);
@@ -88,6 +92,7 @@ describe("handling bad source file paths", () => {
                 'relative/path',
                 './another/relative/path'
             ], {
+                compiler: ts,
                 compilerOptions: strictConfigFile
             });
         }, /not an absolute path/);
@@ -116,11 +121,13 @@ describe("compiler configuration", () => {
         };
 
         let checker = new FailChecker(TEST_FILENAME, {
+            compiler: ts,
             compilerOptions: strictCompilerOptions
         });
         verifyFailures(checker, true);
 
         checker = new FailChecker(TEST_FILENAME, {
+            compiler: ts,
             compilerOptions: laxCompilerOptions
         });
         verifyFailures(checker, false);
@@ -131,11 +138,13 @@ describe("compiler configuration", () => {
     it("uses named tsconfig.json file", (done) => {
 
         let checker = new FailChecker(TEST_FILENAME, {
+            compiler: ts,
             compilerOptions: strictConfigFile
         });
         verifyFailures(checker, true);
 
         checker = new FailChecker(TEST_FILENAME, {
+            compiler: ts,
             compilerOptions: join(__dirname, 'fixtures/tsconfig_lax.json')
         });
         verifyFailures(checker, false);
@@ -147,6 +156,7 @@ describe("compiler configuration", () => {
 
         assert.throws(() => {
             new FailChecker(TEST_FILENAME, {
+                compiler: ts,
                 compilerOptions: join(__dirname, 'fixtures/tsconfig_invalid.json')
             });
         }, /module/);
@@ -157,6 +167,7 @@ describe("compiler configuration", () => {
 
         assert.throws(() => {
             new FailChecker(TEST_FILENAME, {
+                compiler: ts,
                 compilerOptions: join(__dirname, 'fixtures/tsconfig_notthere.json')
             });
         }, /does not exist/);
@@ -170,6 +181,7 @@ describe("root path configuration", () => {
 
         const absFile = join(__dirname, 'fixtures/missing_unexpected.ts');
         const checker = new FailChecker(absFile, {
+            compiler: ts,
             compilerOptions: strictConfigFile
         });
         checker.run();
@@ -188,6 +200,7 @@ describe("root path configuration", () => {
         const relFile = 'fixtures/missing_unexpected.ts';
         const absFile = join(__dirname, relFile);
         const checker = new FailChecker(absFile, {
+            compiler: ts,
             compilerOptions: strictConfigFile,
             rootPath: __dirname
         });
@@ -208,6 +221,7 @@ describe("root path configuration", () => {
 
         assert.throws(() => {
             new FailChecker(join(__dirname, 'fixtures/sampledir/file1a.ts'), {
+                compiler: ts,
                 compilerOptions: strictConfigFile,
                 rootPath: "/somecrazyrootpaththatisnotthere"
             });

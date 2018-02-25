@@ -2,6 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import * as path from 'path';
+import * as ts from 'typescript';
 import { FailChecker, Failure, FailureType } from '../src';
 import { verifyErrorMessages } from './lib/testlib';
 
@@ -11,6 +12,7 @@ const tsconfigFile = path.join(__dirname, 'fixtures/tsconfig.json');
 describe("mockup test", () => {
 
     const checker = new FailChecker(testFile, {
+        compiler: ts,
         compilerOptions: tsconfigFile,
         rootPath: __dirname
     });
@@ -274,6 +276,7 @@ describe("edge cases", () => {
     it("handles end-of-file after group declaration", (done) => {
 
         const checker = new FailChecker(path.join(__dirname, 'fixtures/eof_after_group.ts'), {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -286,6 +289,7 @@ describe("edge cases", () => {
     it("handles end-of-file after error declaration", (done) => {
 
         const checker = new FailChecker(path.join(__dirname, 'fixtures/eof_after_error.ts'), {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();

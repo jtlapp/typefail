@@ -2,6 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
+import * as ts from 'typescript';
 import { FailChecker, FailureType, CheckerSetupError } from '../src';
 import { DirectiveError } from './lib/testlib';
 
@@ -14,6 +15,7 @@ describe("directives", () => {
         const testFile = join(__dirname, 'fixtures/good_syntax.ts');
         const expectedCounts = require(testFile).counts;
         let checker = new FailChecker(testFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -53,6 +55,7 @@ describe("directives", () => {
 
         const testFile = join(__dirname, 'fixtures/ignored.ts');
         let checker = new FailChecker(testFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -73,6 +76,7 @@ function _verifyErrors(fixtureFile: string) {
     // Type not auto-retrieved because fixtures aren't compiled.
     const expectedErrors = <DirectiveError[]>require(testFile).errors;
     let checker = new FailChecker(testFile, {
+        compiler: ts,
         compilerOptions: tsconfigFile
     });
 

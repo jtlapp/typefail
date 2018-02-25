@@ -3,6 +3,7 @@ import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
 import * as fs from 'fs';
+import * as ts from 'typescript';
 import {
     FailChecker,
     CheckerSetupError,
@@ -22,12 +23,13 @@ const subfile2b = 'fixtures/sampledir/subdir/subfile2b.ts';
 // Run the checker recursively on the sampledir and load the expected result data.
 
 const sampleDirChecker = new FailChecker(sampleDirFiles, {
+    compiler: ts,
     compilerOptions: tsconfigFile,
     rootPath: __dirname
 });
 sampleDirChecker.run();
 
-// Update sampledir.json by running tests/gen_json from the repo directory.
+// Update sampledir.json by running tests/tools/gen_failure_json.
 const sampleDirPojo = require('./fixtures/sampledir.json');
 
 const sampleDirMap = new Map<string, Map<string, any>>();
@@ -48,6 +50,7 @@ describe("bailing on setup errors", () => {
     it("bails on first detected setup error", (done) => {
 
         const checker = new FailChecker(setupErrorsFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname // necessary to test that setup errors paths are absolute
         });
@@ -71,6 +74,7 @@ describe("bailing on setup errors", () => {
     it("reports all setup errors without bailing", (done) => {
 
         const checker = new FailChecker(setupErrorsFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname // necessary to test that setup errors paths are absolute
         });
@@ -117,6 +121,7 @@ describe("listing loaded files", () => {
 
         const absFile1a = join(__dirname, 'fixtures/sampledir/file1a.ts');
         const checker = new FailChecker(absFile1a, {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -149,6 +154,7 @@ describe("testing loaded files", () => {
     it("tests a single file specified as a string", (done) => {
 
         const checker = new FailChecker(join(__dirname, file1a), {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
@@ -162,6 +168,7 @@ describe("testing loaded files", () => {
     it("tests a single file specified as an array", (done) => {
 
         const checker = new FailChecker([join(__dirname, file1b)], {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
@@ -178,6 +185,7 @@ describe("testing loaded files", () => {
             join(__dirname, file1a),
             join(__dirname, file1b)
         ], {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
@@ -193,6 +201,7 @@ describe("testing loaded files", () => {
 
         const wildFilePath = 'fixtures/sampledir/file1*.ts';
         const checker = new FailChecker(join(__dirname, wildFilePath), {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
@@ -211,6 +220,7 @@ describe("testing loaded files", () => {
             join(__dirname, wildFilePath),
             join(__dirname, file1b)
         ], {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
@@ -227,6 +237,7 @@ describe("testing loaded files", () => {
 
         const wildFilePath = 'fixtures/sampledir/{,**/}*.ts';
         const checker = new FailChecker([join(__dirname, wildFilePath)], {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });
@@ -311,6 +322,7 @@ describe("enumerating groups", () => {
     it("a single file not specifying groups yields only default group", (done) => {
 
         const checker = new FailChecker(join(__dirname, 'fixtures/groups/no_groups_named.ts'), {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -326,8 +338,10 @@ describe("enumerating groups", () => {
     it("yields all groups of a single specified file, default group first", (done) => {
 
         const checker = new FailChecker(
-            join(__dirname, 'fixtures/groups/second_group_named.ts'),
-            { compilerOptions: tsconfigFile }
+            join(__dirname, 'fixtures/groups/second_group_named.ts'), {
+                compiler: ts,
+                compilerOptions: tsconfigFile
+            }
         );
         checker.run();
         const actualGroups = <string[]>[];
@@ -343,8 +357,10 @@ describe("enumerating groups", () => {
     it("yields all groups of a single specified file, no default group", (done) => {
 
         const checker = new FailChecker(
-            join(__dirname, 'fixtures/groups/both_groups_named.ts'),
-            { compilerOptions: tsconfigFile }
+            join(__dirname, 'fixtures/groups/both_groups_named.ts'), {
+                compiler: ts,
+                compilerOptions: tsconfigFile
+            }
         );
         checker.run();
         const actualGroups = <string[]>[];
@@ -422,6 +438,7 @@ describe("selectively verifying groups", () => {
 
         const filePath = join(__dirname, 'fixtures/groups/default_group_no_code.ts');
         const checker = new FailChecker(filePath, {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -435,6 +452,7 @@ describe("selectively verifying groups", () => {
 
         const filePath = join(__dirname, 'fixtures/groups/first_group_no_code.ts');
         const checker = new FailChecker(filePath, {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -452,6 +470,7 @@ describe("selectively verifying groups", () => {
 
         const filePath = join(__dirname, 'fixtures/groups/last_group_no_code.ts');
         const checker = new FailChecker(filePath, {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -479,6 +498,7 @@ describe("generating json", () => {
     it("generates json for a single file", (done) => {
 
         const checker = new FailChecker(join(__dirname, 'fixtures/sampledir/file1a.ts'), {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             rootPath: __dirname
         });

@@ -2,6 +2,7 @@
 import 'mocha';
 import { assert } from 'chai';
 import { join } from 'path';
+import * as ts from 'typescript';
 import { FailChecker, CheckerSetupError, ErrorMatching } from '../src';
 
 const tsconfigFile = join(__dirname, 'fixtures/tsconfig.json');
@@ -12,6 +13,7 @@ describe("allowed error matching", () => {
     it("allows all error matching be default", (done) => {
 
         let checker = new FailChecker(testFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile
         });
         checker.run();
@@ -26,6 +28,7 @@ describe("allowed error matching", () => {
     it("can restrict to only 'any' error matching", (done) => {
 
         let checker = new FailChecker(testFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Any
         });
@@ -36,6 +39,7 @@ describe("allowed error matching", () => {
     it("can restrict to only 'code' error matching", (done) => {
 
         let checker = new FailChecker(testFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Code
         });
@@ -46,6 +50,7 @@ describe("allowed error matching", () => {
     it("can restrict to only 'exact' error matching", (done) => {
 
         let checker = new FailChecker(testFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Exact
         });
@@ -56,6 +61,7 @@ describe("allowed error matching", () => {
     it("can restrict to only 'regex' error matching", (done) => {
 
         let checker = new FailChecker(testFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Regex
         });
@@ -66,6 +72,7 @@ describe("allowed error matching", () => {
     it("can restrict to only 'code' and 'regex' error matching", (done) => {
 
         let checker = new FailChecker(testFile, {
+            compiler: ts,
             compilerOptions: tsconfigFile,
             allowedErrorMatching: ErrorMatching.Code | ErrorMatching.Regex
         });
