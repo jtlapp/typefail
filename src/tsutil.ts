@@ -18,9 +18,10 @@ export function countLFs(text: string, nextIndex: number) {
     return count;
 }
 
-export function getNodeComments(nodeText: string, linesRead: number): CommentInfo[] | null {
+export function getNodeComments(compiler: typeof ts, nodeText: string, linesRead: number)
+: CommentInfo[] | null {
     // Rely on the library for skipping (multiply) commented-out directives.
-    const commentRanges = ts.getLeadingCommentRanges(nodeText, 0);
+    const commentRanges = compiler.getLeadingCommentRanges(nodeText, 0);
     if (commentRanges === undefined || commentRanges.length === 0) {
         return null;
     }
@@ -38,24 +39,24 @@ export function getNodeComments(nodeText: string, linesRead: number): CommentInf
     });
 }
 
+export function loadCompilerOptions(compiler: typeof ts, tsconfigPath: string) {
+    const {config, error} = compiler.readConfigFile(tsconfigPath, ts.sys.readFile);
+    if (error) {
+        throw new Error(compiler.flattenDiagnosticMessageText(error.messageText, '\n'));
+    }
+    const {options, errors} = compiler.convertCompilerOptionsFromJson(
+            config.compilerOptions, dirname(tsconfigPath));
+    if (errors.length > 0) {
+        throw new Error(compiler.flattenDiagnosticMessageText(errors[0].messageText, '\n'));
+    }
+    return options;
+}
+
 export function normalizePaths(rootRegex: RegExp | null, fileName: string) {
     if (rootRegex === null) {
         return fileName;
     }
     return fileName.replace(rootRegex, '');
-}
-
-export function loadCompilerOptions(tsconfigPath: string) {
-    const {config, error} = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
-    if (error) {
-        throw new Error(ts.flattenDiagnosticMessageText(error.messageText, '\n'));
-    }
-    const {options, errors} = ts.convertCompilerOptionsFromJson(
-            config.compilerOptions, dirname(tsconfigPath));
-    if (errors.length > 0) {
-        throw new Error(ts.flattenDiagnosticMessageText(errors[0].messageText, '\n'));
-    }
-    return options;
 }
 
 export function toFileLocation(fileName: string, lineNum: number, charNum?: number) {

@@ -17,13 +17,16 @@ import {
 } from './directives';
 import { CheckerSetupError, CheckerFailureError } from './errors';
 
-// TBD: remove dependency on typescript module, allow any version of Typescript
+// TBD: allow using command line tsc
+// TBD: verify typescript version against source file directive
+// TBD: check whether can test <type>expression without special directive
 // TBD: look at adding test labels for any node -- expecting errors or not
 // TBD: space-separated params should characterize the same error
 // TBD: pretty up CLI output
 // TBD: test suite for CLI
 
 export interface CheckerOptions {
+    compiler: typeof ts,
     compilerOptions: string | ts.CompilerOptions,
     rootPath?: string,
     allowedErrorMatching?: ErrorMatching // bit flags
@@ -60,12 +63,12 @@ export class FailChecker implements DirectiveConstraints {
 
     allowedErrorMatching: ErrorMatching; // bit flags
 
+    protected compiler: typeof ts;
     protected rootPath: string | undefined;
     protected rootRegex: RegExp | null = null;
     protected expectedFileNames: string[] = [];
     protected absoluteFileNames: string[] = [];
     protected relativeFileNames: string[] = [];
-    protected options: CheckerOptions;
     protected compilerOptions: ts.CompilerOptions;
     protected program: ts.Program | undefined; // undefined before run()
     protected directives: Map<string, Directive[]>; // source file => directives
@@ -95,10 +98,12 @@ export class FailChecker implements DirectiveConstraints {
                 this.absoluteFileNames.push(fileName);
             });
         });
-        this.options = options;
+
+        this.compiler = options.compiler;
 
         if (typeof options.compilerOptions === 'string') {
-            this.compilerOptions = tsutil.loadCompilerOptions(options.compilerOptions);
+            this.compilerOptions =
+                    tsutil.loadCompilerOptions(this.compiler, options.compilerOptions);
         }
         else {
             this.compilerOptions = options.compilerOptions;
@@ -132,7 +137,7 @@ export class FailChecker implements DirectiveConstraints {
 
         // Load and configure Typescript. Source files not yet parsed.
 
-        this.program = ts.createProgram(this.absoluteFileNames, this.compilerOptions);
+        this.program = this.compiler.createProgram(this.absoluteFileNames, this.compilerOptions);
 
         // Confirm that the expected files were found.
 
@@ -426,7 +431,7 @@ export class FailChecker implements DirectiveConstraints {
                 relativeFileName: tsutil.normalizePaths(this.rootRegex, file.fileName),
                 linesRead: 1
             };
-            ts.forEachChild(file, child => {
+            this.compiler.forEachChild(file, child => {
 
                 this._collectDirectives(child, fileMark, bailOnFirstError);
             });
@@ -435,11 +440,11 @@ export class FailChecker implements DirectiveConstraints {
 
     protected _loadErrors(bailOnFirstError: boolean) {
         const program = this._getProgram();
-        let diagnostics = ts.getPreEmitDiagnostics(program);
+        let diagnostics = this.compiler.getPreEmitDiagnostics(program);
 
         diagnostics.forEach(diagnostic => {
             const code = diagnostic.code;
-            const rawMessage = ts.flattenDiagnosticMessageText(
+            const rawMessage = this.compiler.flattenDiagnosticMessageText(
                 diagnostic.messageText,
                 FailChecker.ERROR_DELIM
             );
@@ -500,7 +505,7 @@ export class FailChecker implements DirectiveConstraints {
         // Track lines read for determining line numbers of directives.
         fileMark.linesRead += tsutil.countLFs(nodeText, 0);
 
-        const comments = tsutil.getNodeComments(nodeText, fileMark.linesRead);
+        const comments = tsutil.getNodeComments(this.compiler, nodeText, fileMark.linesRead);
         if (comments !== null) {
             comments.forEach(comment => {
                 let result = Directive.parse(file, relativeFileName, isFirstNode, node,
